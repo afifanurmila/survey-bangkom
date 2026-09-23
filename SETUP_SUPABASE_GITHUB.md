@@ -12,16 +12,18 @@ Project URL dan publishable key ditanamkan ke JavaScript publik ketika Next.js d
 
 ## Deploy ke repository `afifanurmila/survey-bangkom`
 
-1. Push seluruh source Next.js ke branch default `main`, termasuk folder `app/`, `lib/`, `supabase/`, `package.json`, `pnpm-lock.yaml`, `next.config.mjs`, `.github/workflows/pages.yml`, dan `.env.example`. Jangan push `.env.local`.
-2. Repository → **Settings → Secrets and variables → Actions → Variables**, tambahkan:
-   - `NEXT_PUBLIC_SUPABASE_URL` = Project URL
-   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` = publishable key
-   - (opsional) `NEXT_PUBLIC_BASE_PATH` = `/survey-bangkom` (nilai workflow bawaan sudah ini)
-3. Repository → **Settings → Pages → Build and deployment**, pilih **GitHub Actions** sebagai source.
-4. Buka tab **Actions**, pantau workflow *Deploy survey to GitHub Pages*. Setelah sukses, halaman survei berada di `https://afifanurmila.github.io/survey-bangkom/`; admin di `https://afifanurmila.github.io/survey-bangkom/admin/`.
-5. Tambahkan domain khusus di Pages settings bila dibutuhkan. Untuk domain khusus, ubah variable `NEXT_PUBLIC_BASE_PATH` menjadi string kosong, lalu jalankan ulang deployment. Pengaturan DNS dilakukan melalui penyedia domain.
+1. Pastikan source Next.js sudah berada di branch default `main`. Jangan push `.env.local`.
+2. Di lokal, build dengan environment Supabase yang telah diisi:
+   ```powershell
+   $env:NEXT_PUBLIC_BASE_PATH='/survey-bangkom'
+   pnpm build
+   ```
+3. Salin seluruh isi `out/` ke folder `docs/` di root repository. Pastikan file kosong `docs/.nojekyll` ada agar aset `_next` diterbitkan oleh GitHub Pages. Commit dan push perubahan `docs/`.
+4. Repository → **Settings → Pages → Build and deployment**, pilih **Deploy from a branch**, branch `main`, folder `/docs`, kemudian Save.
+5. Situs tersedia di `https://afifanurmila.github.io/survey-bangkom/`; admin ada di `https://afifanurmila.github.io/survey-bangkom/admin/`.
+6. Untuk domain khusus, ubah `NEXT_PUBLIC_BASE_PATH` menjadi string kosong sebelum build ulang, atur DNS sesuai instruksi Pages, lalu perbarui `docs/`.
 
-Workflow Next.js menghasilkan folder `out` dengan static export. GitHub Pages menyajikan hasil build itu, sedangkan Supabase mengelola database dan autentikasi. Static export cocok untuk pola client-side yang digunakan aplikasi ini; fitur yang memerlukan server Next.js tidak digunakan. [Panduan static export Next.js](https://nextjs.org/docs/app/guides/static-exports), [GitHub Pages dengan Actions](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+Next.js menghasilkan static export ke folder `out`; folder `docs/` menyajikan hasil tersebut. Supabase mengelola database dan autentikasi. Static export cocok untuk pola client-side aplikasi ini; fitur yang memerlukan server Next.js tidak digunakan. [Panduan static export Next.js](https://nextjs.org/docs/app/guides/static-exports), [GitHub Pages source branch](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
 
 ## Menjalankan lokal
 

@@ -23,4 +23,4 @@ Jalankan `supabase/schema.sql` di Supabase SQL Editor. Buat akun administrator m
 
 ## Deploy
 
-Workflow GitHub Actions di `.github/workflows/pages.yml` membangun static export Next.js dan mengirim folder `out` ke GitHub Pages. Atur repository variables `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, serta (opsional) `NEXT_PUBLIC_BASE_PATH`.
+Static export dibuat ke `out/` dan salin hasilnya ke `docs/`. Konfigurasi GitHub Pages menggunakan branch `main` dengan folder `/docs`. Cara lengkap memperbarui situs ada di `SETUP_SUPABASE_GITHUB.md`.
