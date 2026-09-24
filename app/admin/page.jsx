@@ -38,7 +38,7 @@ export default function AdminPage() {
     setBusy(false);
     const issue = configResult.error || responseResult.error;
     if (issue) { notify(issue.message, true); return; }
-    const next = configResult.data?.config?.competencies?.length ? { ...DEFAULT_CONFIG, ...configResult.data.config } : DEFAULT_CONFIG;
+    const next = configResult.data?.config?.developmentFormats?.length && configResult.data?.config?.competencies?.length ? { ...DEFAULT_CONFIG, ...configResult.data.config } : DEFAULT_CONFIG;
     setConfig(next); setDraft(JSON.stringify(next, null, 2)); setResponses(responseResult.data || []);
   }
 
@@ -51,8 +51,8 @@ export default function AdminPage() {
   async function saveConfig() {
     try {
       const next = JSON.parse(draft);
-      if (!next.surveyTitle || !next.intro || !Array.isArray(next.competencies) || !next.competencies.length || !Array.isArray(next.smeActivities) || !Array.isArray(next.smeTopics)) throw new Error("Pastikan surveyTitle, intro, competencies, smeActivities, dan smeTopics tersedia.");
-      if (next.competencies.some(x => !x.id || !x.title) || next.smeActivities.some(x => !x.title) || next.smeTopics.some(x => !x.title)) throw new Error("Setiap item harus memiliki title; kompetensi harus memiliki id.");
+      if (!next.surveyTitle || !next.intro || !Array.isArray(next.competencies) || !next.competencies.length || !Array.isArray(next.developmentFormats) || !next.developmentFormats.length || !Array.isArray(next.priorityTopics) || !Array.isArray(next.learningMethods)) throw new Error("Pastikan judul, pengantar, competencies, developmentFormats, priorityTopics, dan learningMethods tersedia.");
+      if (next.competencies.some(x => !x.id || !x.title || !x.pilar) || next.developmentFormats.some(x => typeof x !== "string") || next.priorityTopics.some(x => typeof x !== "string") || next.learningMethods.some(x => typeof x !== "string")) throw new Error("Kompetensi perlu memiliki id, title, dan pilar. Pilihan pengembangan ditulis sebagai teks.");
       const { data: { user } } = await db.auth.getUser();
       const { error: issue } = await db.from("survey_config").upsert({ id: "main", config: next, updated_at: new Date().toISOString(), updated_by: user.id });
       if (issue) throw issue;
@@ -68,7 +68,7 @@ export default function AdminPage() {
   }).sort((a, b) => b.priority - a.priority);
 
   function exportCsv() {
-    const fields = ["created_at", "nama", "unit", "jabatan", "jenjang", "masa_kerja", "hari", "waktu", "sme_kegiatan", "sme_topik", "kendala", "kontribusi", "topik_kontribusi", "saran", ...config.competencies.flatMap(c => [`${c.title} - penguasaan`, `${c.title} - kebutuhan`, `${c.title} - gap`])];
+    const fields = ["created_at", "nama", "unit", "jabatan", "jenjang", "masa_kerja", "bentuk_pengembangan", "topik_prioritas", "metode_pembelajaran", "kompetensi_lain", "hari", "waktu", "sme_kegiatan", "sme_topik", "kendala", "kontribusi", "topik_kontribusi", "saran", ...config.competencies.flatMap(c => [`${c.code || c.id} ${c.title} - kemampuan`, `${c.code || c.id} ${c.title} - kebutuhan`, `${c.code || c.id} ${c.title} - gap`])];
     const cell = x => {
       let value = String(Array.isArray(x) ? x.join("; ") : x ?? "");
       if (/^[=+@\-\t\r]/.test(value)) value = `'${value}`;
@@ -77,7 +77,7 @@ export default function AdminPage() {
     const lines = [fields.map(cell).join(",")];
     responses.forEach(row => {
       const r = row.response || {}; const score = Object.fromEntries((r.scores || []).map(s => [s.id, s]));
-      const values = [row.created_at, r.nama, r.unit, r.jabatan, r.jenjang, r.masa_kerja, r.hari, r.waktu, r.sme_kegiatan, r.sme_topik, r.kendala, r.kontribusi, r.topik_kontribusi, r.saran];
+      const values = [row.created_at, r.nama, r.unit, r.jabatan, r.jenjang, r.masa_kerja, r.bentuk_pengembangan, r.topik_prioritas, r.metode_pembelajaran, r.kompetensi_lain, r.hari, r.waktu, r.sme_kegiatan, r.sme_topik, r.kendala, r.kontribusi, r.topik_kontribusi, r.saran];
       config.competencies.forEach(c => { const s = score[c.id] || {}; values.push(s.penguasaan, s.kebutuhan, s.gap); });
       lines.push(values.map(cell).join(","));
     });
@@ -92,7 +92,7 @@ export default function AdminPage() {
       <section className="stats-grid"><article className="stat-card"><span>Total respons</span><b>{responses.length}</b></article><article className="stat-card"><span>Kompetensi dianalisis</span><b>{config.competencies.length}</b></article><article className="stat-card"><span>Respons terbaru</span><b className="stat-small">{responses[0] ? new Date(responses[0].created_at).toLocaleDateString("id-ID") : "Belum ada"}</b></article></section>
       <section className="card"><div className="section-heading"><span>Analisis kebutuhan</span><h2>Prioritas kompetensi</h2><p>Urutan praktis memakai rata-rata kebutuhan ditambah gap positif.</p></div><div className="table-wrap"><table><thead><tr><th>#</th><th>Kompetensi</th><th>Rata-rata kebutuhan</th><th>Rata-rata gap</th></tr></thead><tbody>{priorities.map((x, i) => <tr key={x.title}><td>{i + 1}</td><td>{x.title}</td><td>{x.need.toFixed(2)}</td><td>{x.gap > 0 ? "+" : ""}{x.gap.toFixed(2)}</td></tr>)}</tbody></table></div></section>
       <section className="card"><div className="section-heading"><span>Data mentah</span><h2>Respons masuk</h2><p>Ekspor memuat jawaban lengkap. Lindungi file hasil unduhan.</p></div><div className="actions"><button className="button primary" onClick={exportCsv} disabled={!responses.length}>Unduh CSV</button></div><div className="table-wrap"><table><thead><tr><th>Waktu</th><th>Unit</th><th>Jabatan</th><th>Gap tertinggi</th></tr></thead><tbody>{responses.slice(0, 50).map(row => { const r = row.response || {}; const top = [...(r.scores || [])].sort((a, b) => Number(b.gap) - Number(a.gap))[0]; return <tr key={row.id}><td>{new Date(row.created_at).toLocaleString("id-ID")}</td><td>{r.unit || "—"}</td><td>{r.jabatan || "—"}</td><td>{top ? `${top.kompetensi} (+${top.gap})` : "—"}</td></tr>; })}{!responses.length && <tr><td colSpan="4">Belum ada respons.</td></tr>}</tbody></table></div></section>
-      <section className="card"><div className="section-heading"><span>Konfigurasi aktif</span><h2>Editor kuesioner</h2><p>Perbarui judul, teks pembuka, kompetensi, kegiatan, dan topik. Gunakan format JSON yang valid.</p></div><textarea className="json-editor" spellCheck="false" value={draft} onChange={e => setDraft(e.target.value)} /><div className="actions"><button className="button primary" onClick={saveConfig}>Simpan perubahan</button></div></section>
+      <section className="card"><div className="section-heading"><span>Konfigurasi aktif</span><h2>Editor kuesioner</h2><p>Perbarui judul, pengantar, pernyataan kompetensi per kelompok, bentuk pengembangan, topik prioritas, dan metode belajar. Gunakan JSON yang valid. Respons lama tetap tersimpan dengan struktur sebelumnya.</p></div><textarea className="json-editor" spellCheck="false" value={draft} onChange={e => setDraft(e.target.value)} /><div className="actions"><button className="button primary" onClick={saveConfig}>Simpan perubahan</button></div></section>
     </>}
   </main><footer className="footer">Akses dashboard hanya untuk akun administrator.</footer></div>;
 }
