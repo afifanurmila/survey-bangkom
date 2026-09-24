@@ -18,7 +18,7 @@ function Checks({ name, options, value, onChange }) { return <div className="cho
 export default function SurveyPage() {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState({ nama: "", unit: "", jabatan: "", jenjang: "Tidak Berlaku / Bukan Pejabat Fungsional", masa_kerja: "" });
+  const [profile, setProfile] = useState({ nama: "", nip: "", unit: "", jabatan: "", jenjang: "Tidak Berlaku / Bukan Pejabat Fungsional", masa_kerja: "" });
   const [scores, setScores] = useState({});
   const [formats, setFormats] = useState([]);
   const [formatOther, setFormatOther] = useState("");
@@ -43,7 +43,7 @@ export default function SurveyPage() {
   function setProfileField(key, value) { setProfile(prev => ({ ...prev, [key]: value })); }
   function toggle(list, setter, value, max = Infinity) { setter(prev => prev.includes(value) ? prev.filter(x => x !== value) : prev.length < max ? [...prev, value] : prev); }
   function next() {
-    if (step === 1 && (!profile.unit || !profile.jabatan || !profile.masa_kerja)) { setNotice("Lengkapi unit kerja, jenis jabatan, dan masa kerja terlebih dahulu."); return; }
+    if (step === 1 && (!profile.nama.trim() || !profile.nip.trim() || !profile.unit || !profile.jabatan || !profile.masa_kerja)) { setNotice("Lengkapi nama lengkap, NIP, unit kerja, jenis jabatan, dan masa kerja terlebih dahulu."); return; }
     if (step === 2 && config.competencies.some(c => !scores[c.id]?.mastery || !scores[c.id]?.need)) { setNotice("Berikan penilaian kemampuan dan kebutuhan untuk semua pernyataan."); return; }
     if (step === 3 && (!formats.length || !topics.length || !method)) { setNotice("Pilih setidaknya satu bentuk pengembangan, topik prioritas, dan metode pembelajaran."); return; }
     setNotice(""); setStep(n => Math.min(4, n + 1)); window.scrollTo({ top: 0, behavior: "smooth" });
@@ -54,7 +54,7 @@ export default function SurveyPage() {
     if (!db) { setNotice("Konfigurasi Supabase belum tersedia. Silakan hubungi administrator."); return; }
     setBusy(true);
     const response = {
-      ...profile, nama: profile.nama || "Anonim",
+      ...profile, nama: profile.nama.trim(), nip: profile.nip.trim(),
       scores: config.competencies.map(c => ({ id: c.id, kode: c.code || c.id, kelompok: c.pilar, kompetensi: c.title, penguasaan: Number(scores[c.id].mastery), kebutuhan: Number(scores[c.id].need), gap: Number(scores[c.id].need) - Number(scores[c.id].mastery) })),
       bentuk_pengembangan: [...formats.filter(x => x !== "Lainnya"), ...(formats.includes("Lainnya") && formatOther.trim() ? [formatOther.trim()] : [])],
       topik_prioritas: [...topics.filter(x => x !== "Lainnya"), ...(topics.includes("Lainnya") && topicOther.trim() ? [topicOther.trim()] : [])],
@@ -69,7 +69,7 @@ export default function SurveyPage() {
 
   const progress = done ? 100 : step * 25;
   return <div className="site-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">LAN RI</span><span><b>Deputi Bidang Peningkatan Kualitas Kebijakan</b><small>Bigger • Smarter • Better</small></span></div><Link href="/admin/" className="admin-link">Admin</Link></header>
+    <header className="topbar"><div className="brand"><span className="brand-mark">LAN RI</span><span><b>Deputi Bidang Peningkatan Kualitas Kebijakan</b><small>Bigger • Smarter • Better</small></span></div></header>
     <main className="container">
       <section className="hero"><div className="eyebrow">Analisis Kebutuhan Pengembangan Kompetensi (AKPK)</div><h1>{config.surveyTitle}</h1><p>{config.intro}</p><div className="hero-meta"><span>Estimasi waktu: 6–8 menit</span><span>Skala penilaian 1–5</span><span>Pengembangan kapasitas SME</span></div></section>
       {notice && <div className="notice" role="alert">{notice}</div>}
@@ -77,7 +77,7 @@ export default function SurveyPage() {
         <section className="progress-card"><div><span>Kemajuan: {progress}%</span><b>Bagian {step} dari 4</b></div><div className="progress-track"><span style={{ width: `${progress}%` }} /></div></section>
         <form onSubmit={submit}>
           {step === 1 && <section className="card form-section"><SectionHeading n="1" title="Profil Responden" desc="Lengkapi data unit kerja dan profil jabatan Anda." />
-            <Field label="Nama lengkap / NIP (opsional)"><input value={profile.nama} onChange={e => setProfileField("nama", e.target.value)} placeholder="Boleh dikosongkan" /></Field>
+            <div className="form-grid"><Field label="Nama Lengkap *"><input required autoComplete="name" value={profile.nama} onChange={e => setProfileField("nama", e.target.value)} placeholder="Masukkan nama lengkap" /></Field><Field label="NIP *"><input required inputMode="numeric" autoComplete="off" value={profile.nip} onChange={e => setProfileField("nip", e.target.value)} placeholder="Masukkan NIP" /></Field></div>
             <Field label="Direktorat / Unit Kerja *"><Select options={units} value={profile.unit} onChange={e => setProfileField("unit", e.target.value)} placeholder="Pilih unit kerja" /></Field>
             <div className="form-grid"><Field label="Kategori / Jenis Jabatan *"><Select options={positions} value={profile.jabatan} onChange={e => setProfileField("jabatan", e.target.value)} placeholder="Pilih jenis jabatan" /></Field><Field label="Jenjang Jabatan Fungsional"><Select options={["Tidak Berlaku / Bukan Pejabat Fungsional", "Ahli Pertama / Terampil", "Ahli Muda / Mahir", "Ahli Madya / Penyelia", "Ahli Utama"]} value={profile.jenjang} onChange={e => setProfileField("jenjang", e.target.value)} /></Field></div>
             <Field label="Masa kerja di lingkungan Deputi I LAN RI *"><RadioList name="masa" options={years} value={profile.masa_kerja} onChange={v => setProfileField("masa_kerja", v)} compact /></Field><Nav next={next} nextLabel="Lanjut ke Penilaian Kompetensi →" />

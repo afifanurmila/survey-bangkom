@@ -68,7 +68,7 @@ export default function AdminPage() {
   }).sort((a, b) => b.priority - a.priority);
 
   function exportCsv() {
-    const fields = ["created_at", "nama", "unit", "jabatan", "jenjang", "masa_kerja", "bentuk_pengembangan", "topik_prioritas", "metode_pembelajaran", "kompetensi_lain", "hari", "waktu", "sme_kegiatan", "sme_topik", "kendala", "kontribusi", "topik_kontribusi", "saran", ...config.competencies.flatMap(c => [`${c.code || c.id} ${c.title} - kemampuan`, `${c.code || c.id} ${c.title} - kebutuhan`, `${c.code || c.id} ${c.title} - gap`])];
+    const fields = ["created_at", "nama", "nip", "unit", "jabatan", "jenjang", "masa_kerja", "bentuk_pengembangan", "topik_prioritas", "metode_pembelajaran", "kompetensi_lain", "hari", "waktu", "sme_kegiatan", "sme_topik", "kendala", "kontribusi", "topik_kontribusi", "saran", ...config.competencies.flatMap(c => [`${c.code || c.id} ${c.title} - kemampuan`, `${c.code || c.id} ${c.title} - kebutuhan`, `${c.code || c.id} ${c.title} - gap`])];
     const cell = x => {
       let value = String(Array.isArray(x) ? x.join("; ") : x ?? "");
       if (/^[=+@\-\t\r]/.test(value)) value = `'${value}`;
@@ -77,7 +77,7 @@ export default function AdminPage() {
     const lines = [fields.map(cell).join(",")];
     responses.forEach(row => {
       const r = row.response || {}; const score = Object.fromEntries((r.scores || []).map(s => [s.id, s]));
-      const values = [row.created_at, r.nama, r.unit, r.jabatan, r.jenjang, r.masa_kerja, r.bentuk_pengembangan, r.topik_prioritas, r.metode_pembelajaran, r.kompetensi_lain, r.hari, r.waktu, r.sme_kegiatan, r.sme_topik, r.kendala, r.kontribusi, r.topik_kontribusi, r.saran];
+      const values = [row.created_at, r.nama, r.nip, r.unit, r.jabatan, r.jenjang, r.masa_kerja, r.bentuk_pengembangan, r.topik_prioritas, r.metode_pembelajaran, r.kompetensi_lain, r.hari, r.waktu, r.sme_kegiatan, r.sme_topik, r.kendala, r.kontribusi, r.topik_kontribusi, r.saran];
       config.competencies.forEach(c => { const s = score[c.id] || {}; values.push(s.penguasaan, s.kebutuhan, s.gap); });
       lines.push(values.map(cell).join(","));
     });
