@@ -11,9 +11,9 @@ const years = ["< 1 tahun", "1 – 3 tahun", "3 – 5 tahun", "> 5 tahun"];
 const scale = ["Sangat tidak mampu", "Tidak mampu", "Cukup mampu", "Mampu", "Sangat mampu"];
 const needScale = ["Sangat tidak membutuhkan", "Tidak membutuhkan", "Cukup membutuhkan", "Membutuhkan", "Sangat membutuhkan"];
 
-function Field({ label, children }) { return <label className="field"><span>{label}</span>{children}</label>; }
-function Select({ options, value, onChange, placeholder }) { return <select value={value} onChange={onChange} required><option value="">{placeholder}</option>{options.map(x => <option key={x}>{x}</option>)}</select>; }
-function Checks({ name, options, value, onChange }) { return <div className="choice-grid">{options.map(x => <label className="choice" key={x}><input type="checkbox" name={name} checked={value.includes(x)} onChange={() => onChange(x)} /><span>{x}</span></label>)}</div>; }
+function Field({ label, children, error, id }) { return <div className={`field ${error ? "has-error" : ""}`}>{id ? <label className="field-label" htmlFor={id}>{label}</label> : <span className="field-label">{label}</span>}{children}{error && <small className="field-error" role="alert">{error}</small>}</div>; }
+function Select({ id, options, value, onChange, placeholder }) { return <select id={id} aria-label={placeholder} value={value} onChange={onChange} required><option value="">{placeholder}</option>{options.map(x => <option key={x}>{x}</option>)}</select>; }
+function Checks({ name, options, value, onChange }) { return <div className="choice-grid" role="group" aria-label={name}>{options.map(x => <label className="choice" key={x}><input type="checkbox" name={name} checked={value.includes(x)} onChange={() => onChange(x)} /><span>{x}</span></label>)}</div>; }
 
 export default function SurveyPage() {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
@@ -30,6 +30,7 @@ export default function SurveyPage() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [notice, setNotice] = useState("");
+  const [validationErrors, setValidationErrors] = useState({});
   const db = getSupabase();
 
   useEffect(() => {
@@ -40,15 +41,36 @@ export default function SurveyPage() {
     return () => { alive = false; };
   }, []);
 
-  function setProfileField(key, value) { setProfile(prev => ({ ...prev, [key]: value })); }
+  function setProfileField(key, value) { setProfile(prev => ({ ...prev, [key]: value })); setValidationErrors(prev => ({ ...prev, [key]: "" })); }
+  function setScore(id, key, value) { setScores(prev => ({ ...prev, [id]: { ...prev[id], [key]: value } })); setValidationErrors(prev => ({ ...prev, [`${key}-${id}`]: "" })); }
+  function clearValidation(key) { setValidationErrors(prev => ({ ...prev, [key]: "" })); }
   function toggle(list, setter, value, max = Infinity) { setter(prev => prev.includes(value) ? prev.filter(x => x !== value) : prev.length < max ? [...prev, value] : prev); }
   function next() {
-    if (step === 1 && (!profile.nama.trim() || !profile.nip.trim() || !profile.unit || !profile.jabatan || !profile.masa_kerja)) { setNotice("Lengkapi nama lengkap, NIP, unit kerja, jenis jabatan, dan masa kerja terlebih dahulu."); return; }
+    const errors = {};
+    if (step === 1) {
+      if (!profile.nama.trim()) errors.nama = "Nama lengkap wajib diisi.";
+      if (!profile.nip.trim()) errors.nip = "NIP wajib diisi.";
+      if (!profile.unit) errors.unit = "Unit kerja wajib dipilih.";
+      if (!profile.jabatan) errors.jabatan = "Jenis jabatan wajib dipilih.";
+      if (!profile.masa_kerja) errors.masa_kerja = "Masa kerja wajib dipilih.";
+    }
     if (step >= 2 && step <= 6) {
       const currentGroup = [...new Set(config.competencies.map(c => c.pilar))][step - 2];
-      if (config.competencies.filter(c => c.pilar === currentGroup).some(c => !scores[c.id]?.mastery || !scores[c.id]?.need)) { setNotice("Berikan penilaian kemampuan dan kebutuhan untuk semua pernyataan di halaman ini."); return; }
+      config.competencies.filter(c => c.pilar === currentGroup).forEach(c => {
+        if (!scores[c.id]?.mastery) errors[`mastery-${c.id}`] = "Wajib diisi.";
+        if (!scores[c.id]?.need) errors[`need-${c.id}`] = "Wajib diisi.";
+      });
     }
-    if (step === 7 && (!formats.length || !topics.length || !method)) { setNotice("Pilih setidaknya satu bentuk pengembangan, topik prioritas, dan metode pembelajaran."); return; }
+    if (step === 7) {
+      if (!formats.length) errors.formats = "Pilih setidaknya satu bentuk pengembangan.";
+      if (formats.includes("Lainnya") && !formatOther.trim()) errors.formatOther = "Tuliskan bentuk pengembangan lainnya.";
+      if (!topics.length) errors.topics = "Pilih setidaknya satu topik prioritas.";
+      if (topics.includes("Lainnya") && !topicOther.trim()) errors.topicOther = "Tuliskan topik lainnya.";
+      if (!method) errors.method = "Metode pembelajaran wajib dipilih.";
+      if (method === "Lainnya" && !methodOther.trim()) errors.methodOther = "Tuliskan metode pembelajaran lainnya.";
+    }
+    setValidationErrors(errors);
+    if (Object.keys(errors).length) { setNotice("Periksa isian yang ditandai. Pertanyaan tersebut wajib diisi."); return; }
     setNotice(""); setStep(n => Math.min(8, n + 1)); window.scrollTo({ top: 0, behavior: "smooth" });
   }
   function back() { setNotice(""); setStep(n => Math.max(1, n - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }
@@ -84,19 +106,19 @@ export default function SurveyPage() {
         <section className="progress-card"><div><span>Kemajuan: {progress}%</span><b>Halaman {step} dari 8</b></div><div className="progress-track"><span style={{ width: `${progress}%` }} /></div></section>
         <form onSubmit={submit}>
           {step === 1 && <section className="card form-section"><SectionHeading n="1" title="Profil Responden" desc="Lengkapi data unit kerja dan profil jabatan Anda." />
-            <div className="form-grid"><Field label="Nama Lengkap *"><input required autoComplete="name" value={profile.nama} onChange={e => setProfileField("nama", e.target.value)} placeholder="Masukkan nama lengkap" /></Field><Field label="NIP *"><input required inputMode="numeric" autoComplete="off" value={profile.nip} onChange={e => setProfileField("nip", e.target.value)} placeholder="Masukkan NIP" /></Field></div>
-            <Field label="Direktorat / Unit Kerja *"><Select options={units} value={profile.unit} onChange={e => setProfileField("unit", e.target.value)} placeholder="Pilih unit kerja" /></Field>
-            <div className="form-grid"><Field label="Kategori / Jenis Jabatan *"><Select options={positions} value={profile.jabatan} onChange={e => setProfileField("jabatan", e.target.value)} placeholder="Pilih jenis jabatan" /></Field><Field label="Jenjang Jabatan Fungsional"><Select options={["Tidak Berlaku / Bukan Pejabat Fungsional", "Ahli Pertama / Terampil", "Ahli Muda / Mahir", "Ahli Madya / Penyelia", "Ahli Utama"]} value={profile.jenjang} onChange={e => setProfileField("jenjang", e.target.value)} /></Field></div>
-            <Field label="Masa kerja di lingkungan Deputi I LAN RI *"><RadioList name="masa" options={years} value={profile.masa_kerja} onChange={v => setProfileField("masa_kerja", v)} compact /></Field><Nav next={next} nextLabel="Lanjut ke Penilaian Kompetensi →" />
+            <div className="form-grid"><Field id="nama" label="Nama Lengkap *" error={validationErrors.nama}><input id="nama" required autoComplete="name" aria-invalid={Boolean(validationErrors.nama)} value={profile.nama} onChange={e => setProfileField("nama", e.target.value)} placeholder="Masukkan nama lengkap" /></Field><Field id="nip" label="NIP *" error={validationErrors.nip}><input id="nip" required inputMode="numeric" autoComplete="off" aria-invalid={Boolean(validationErrors.nip)} value={profile.nip} onChange={e => setProfileField("nip", e.target.value)} placeholder="Masukkan NIP" /></Field></div>
+            <Field id="unit" label="Direktorat / Unit Kerja *" error={validationErrors.unit}><Select id="unit" options={units} value={profile.unit} onChange={e => setProfileField("unit", e.target.value)} placeholder="Pilih unit kerja" /></Field>
+            <div className="form-grid"><Field id="jabatan" label="Kategori / Jenis Jabatan *" error={validationErrors.jabatan}><Select id="jabatan" options={positions} value={profile.jabatan} onChange={e => setProfileField("jabatan", e.target.value)} placeholder="Pilih jenis jabatan" /></Field><Field id="jenjang" label="Jenjang Jabatan Fungsional"><Select id="jenjang" options={["Tidak Berlaku / Bukan Pejabat Fungsional", "Ahli Pertama / Terampil", "Ahli Muda / Mahir", "Ahli Madya / Penyelia", "Ahli Utama"]} value={profile.jenjang} onChange={e => setProfileField("jenjang", e.target.value)} /></Field></div>
+            <Field label="Masa kerja di lingkungan Deputi I LAN RI *" error={validationErrors.masa_kerja}><RadioList name="masa" options={years} value={profile.masa_kerja} onChange={v => setProfileField("masa_kerja", v)} compact /></Field><Nav next={next} nextLabel="Lanjut ke Penilaian Kompetensi →" />
           </section>}
           {step >= 2 && step <= 6 && <section className="card form-section"><SectionHeading n={`Poin ${groupLetter} dari E`} title={groupTitle} desc="Nilai setiap pernyataan berdasarkan kemampuan Anda saat ini dan kebutuhan pengembangan kompetensi." />
             <div className="scale-help"><p><b>Kemampuan saat ini</b><br />{scale.map((x, i) => `${i + 1} ${x}`).join(" · ")}</p><p><b>Kebutuhan pengembangan</b><br />{needScale.map((x, i) => `${i + 1} ${x}`).join(" · ")}</p></div>
-            <div className="competency-group"><div className="competency-list">{config.competencies.filter(c => c.pilar === groupTitle).map(c => <article className="competency" key={c.id}><div><small>{c.code || c.id}</small><b>{c.title}</b></div><Rating name={`${c.id}-mastery`} label="Kemampuan saat ini" value={scores[c.id]?.mastery || ""} labels={scale} onChange={v => setScores(s => ({ ...s, [c.id]: { ...s[c.id], mastery: v } }))} /><Rating name={`${c.id}-need`} label="Kebutuhan pengembangan" value={scores[c.id]?.need || ""} labels={needScale} onChange={v => setScores(s => ({ ...s, [c.id]: { ...s[c.id], need: v } }))} /></article>)}</div></div><Nav back={back} next={next} nextLabel={step < 6 ? `Lanjut ke poin ${String.fromCharCode(66 + groupIndex)} →` : "Lanjut ke Identifikasi Kebutuhan →"} />
+            <div className="competency-group"><div className="competency-list">{config.competencies.filter(c => c.pilar === groupTitle).map(c => <article className="competency" key={c.id}><div><small>{c.code || c.id}</small><b>{c.title}</b></div><Rating name={`${c.id}-mastery`} label="Kemampuan saat ini" value={scores[c.id]?.mastery || ""} labels={scale} error={validationErrors[`mastery-${c.id}`]} onChange={v => setScore(c.id, "mastery", v)} /><Rating name={`${c.id}-need`} label="Kebutuhan pengembangan" value={scores[c.id]?.need || ""} labels={needScale} error={validationErrors[`need-${c.id}`]} onChange={v => setScore(c.id, "need", v)} /></article>)}</div></div><Nav back={back} next={next} nextLabel={step < 6 ? `Lanjut ke poin ${String.fromCharCode(66 + groupIndex)} →` : "Lanjut ke Identifikasi Kebutuhan →"} />
           </section>}
           {step === 7 && <section className="card form-section"><SectionHeading n="7" title="Identifikasi Kebutuhan Pengembangan" desc="Pilih jenis, topik, dan metode pengembangan kompetensi yang paling sesuai." />
-            <Field label="Bentuk pengembangan kompetensi yang paling dibutuhkan (pilih maksimal 3) *"><Checks name="formats" options={config.developmentFormats} value={formats} onChange={v => toggle(formats, setFormats, v, 3)} /></Field>{formats.includes("Lainnya") && <Field label="Bentuk pengembangan lainnya"><input value={formatOther} onChange={e => setFormatOther(e.target.value)} placeholder="Tuliskan bentuk yang dibutuhkan" /></Field>}
-            <Field label="Topik / kompetensi yang paling diprioritaskan (pilih maksimal 3) *"><Checks name="topics" options={config.priorityTopics} value={topics} onChange={v => toggle(topics, setTopics, v, 3)} /></Field>{topics.includes("Lainnya") && <Field label="Topik lainnya"><input value={topicOther} onChange={e => setTopicOther(e.target.value)} placeholder="Tuliskan topik prioritas" /></Field>}
-            <Field label="Metode pembelajaran yang paling sesuai *"><RadioList name="method" options={config.learningMethods} value={method} onChange={setMethod} /></Field>{method === "Lainnya" && <Field label="Metode pembelajaran lainnya"><input value={methodOther} onChange={e => setMethodOther(e.target.value)} placeholder="Tuliskan metode yang sesuai" /></Field>}<Nav back={back} next={next} />
+            <Field label="Bentuk pengembangan kompetensi yang paling dibutuhkan (pilih maksimal 3) *" error={validationErrors.formats}><Checks name="formats" options={config.developmentFormats} value={formats} onChange={v => { toggle(formats, setFormats, v, 3); clearValidation("formats"); }} /></Field>{formats.includes("Lainnya") && <Field id="formatOther" label="Bentuk pengembangan lainnya *" error={validationErrors.formatOther}><input id="formatOther" value={formatOther} onChange={e => { setFormatOther(e.target.value); clearValidation("formatOther"); }} placeholder="Tuliskan bentuk yang dibutuhkan" /></Field>}
+            <Field label="Topik / kompetensi yang paling diprioritaskan (pilih maksimal 3) *" error={validationErrors.topics}><Checks name="topics" options={config.priorityTopics} value={topics} onChange={v => { toggle(topics, setTopics, v, 3); clearValidation("topics"); }} /></Field>{topics.includes("Lainnya") && <Field id="topicOther" label="Topik lainnya *" error={validationErrors.topicOther}><input id="topicOther" value={topicOther} onChange={e => { setTopicOther(e.target.value); clearValidation("topicOther"); }} placeholder="Tuliskan topik prioritas" /></Field>}
+            <Field label="Metode pembelajaran yang paling sesuai *" error={validationErrors.method}><RadioList name="method" options={config.learningMethods} value={method} onChange={v => { setMethod(v); clearValidation("method"); }} /></Field>{method === "Lainnya" && <Field id="methodOther" label="Metode pembelajaran lainnya *" error={validationErrors.methodOther}><input id="methodOther" value={methodOther} onChange={e => { setMethodOther(e.target.value); clearValidation("methodOther"); }} placeholder="Tuliskan metode yang sesuai" /></Field>}<Nav back={back} next={next} />
           </section>}
           {step === 8 && <section className="card form-section"><SectionHeading n="8" title="Masukan Tambahan" desc="Tambahkan kebutuhan kompetensi yang belum tercakup dalam pilihan sebelumnya." /><Field label="Kompetensi atau topik lain yang perlu dikembangkan untuk mendukung tugas SME"><textarea rows={5} value={suggestion} onChange={e => setSuggestion(e.target.value)} placeholder="Tuliskan kompetensi atau topik yang Anda usulkan" /></Field><div className="nav-row"><button type="button" className="button secondary" onClick={back}>Kembali</button><button type="submit" className="button primary" disabled={busy}>{busy ? "Mengirim…" : "Kirim jawaban"}</button></div></section>}
         </form>
@@ -107,5 +129,5 @@ export default function SurveyPage() {
 
 function SectionHeading({ n, title, desc }) { return <div className="section-heading"><span>{String(n).startsWith("Poin ") ? n : `Bagian ${n}`}</span><h2>{title}</h2><p>{desc}</p></div>; }
 function Nav({ back, next, nextLabel = "Lanjut" }) { return <div className={`nav-row ${back ? "between" : "end"}`}>{back && <button type="button" className="button secondary" onClick={back}>Kembali</button>}<button type="button" className={`button primary ${nextLabel.startsWith("Lanjut ke Penilaian") ? "continue-specific" : ""}`} onClick={next}>{nextLabel}</button></div>; }
-function RadioList({ name, options, value, onChange, compact = false }) { return <div className={`choice-grid ${compact ? "tenure-choices" : ""}`}>{options.map(x => <label className="choice" key={x}><input type="radio" name={name} checked={value === x} onChange={() => onChange(x)} /><span>{x}</span></label>)}</div>; }
-function Rating({ name, label, value, labels, onChange }) { return <fieldset className="rating"><legend>{label}</legend><div>{[1, 2, 3, 4, 5].map(n => <label key={n} className={String(n) === String(value) ? "selected" : ""}><input type="radio" name={name} checked={String(n) === String(value)} onChange={() => onChange(n)} /><span title={labels[n - 1]}>{n}</span></label>)}</div><small>{value ? labels[Number(value) - 1] : "Pilih nilai 1–5"}</small></fieldset>; }
+function RadioList({ name, options, value, onChange, compact = false }) { return <div className={`choice-grid ${compact ? "tenure-choices" : ""}`} role="radiogroup" aria-label={name}>{options.map(x => <label className="choice" key={x}><input type="radio" name={name} checked={value === x} onChange={() => onChange(x)} /><span>{x}</span></label>)}</div>; }
+function Rating({ name, label, value, labels, error, onChange }) { return <fieldset className={`rating ${error ? "has-error" : ""}`}><legend>{label}</legend><div>{[1, 2, 3, 4, 5].map(n => <label key={n} className={String(n) === String(value) ? "selected" : ""}><input type="radio" name={name} required checked={String(n) === String(value)} onChange={() => onChange(n)} /><span title={labels[n - 1]}>{n}</span></label>)}</div><small>{value ? labels[Number(value) - 1] : "Pilih nilai 1–5"}</small>{error && <small className="rating-error" role="alert">{error}</small>}</fieldset>; }
