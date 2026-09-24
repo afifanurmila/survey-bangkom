@@ -15,5 +15,6 @@
 .tenure-choices .choice input{position:static!important;inset:auto!important;left:auto!important;top:auto!important;width:16px;height:16px;margin:0!important;flex:none}
 .tenure-choices .choice>span{display:block;width:100%;min-width:0;text-align:left;white-space:nowrap;word-break:keep-all;overflow-wrap:normal}
 .nav-row .button.continue-specific{background:var(--navy);color:#fff;padding:12px 19px}
+.competency .rating:last-child{border-left:1px solid var(--line);padding-left:14px}
 @media(max-width:720px){.tenure-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.tenure-choices{grid-template-columns:1fr}}
