@@ -32,11 +32,16 @@ export default function SurveyPage() {
   const [notice, setNotice] = useState("");
   const [validationErrors, setValidationErrors] = useState({});
   const db = getSupabase();
+  const competencyGroups = [...new Set(config.competencies.map(c => c.pilar))];
+  const groupCount = competencyGroups.length;
+  const identificationStep = groupCount + 2;
+  const suggestionStep = groupCount + 3;
+  const totalSteps = groupCount + 3;
 
   useEffect(() => {
     let alive = true;
     if (db) db.from("survey_config").select("config").eq("id", "main").maybeSingle().then(({ data }) => {
-      if (alive && data?.config?.developmentFormats?.length && data?.config?.competencies?.length) setConfig({ ...DEFAULT_CONFIG, ...data.config });
+      if (alive && data?.config?.instrumentVersion === DEFAULT_CONFIG.instrumentVersion && data?.config?.developmentFormats?.length && data?.config?.competencies?.length) setConfig({ ...DEFAULT_CONFIG, ...data.config });
     });
     return () => { alive = false; };
   }, []);
@@ -54,14 +59,14 @@ export default function SurveyPage() {
       if (!profile.jabatan) errors.jabatan = "Jenis jabatan wajib dipilih.";
       if (!profile.masa_kerja) errors.masa_kerja = "Masa kerja wajib dipilih.";
     }
-    if (step >= 2 && step <= 6) {
-      const currentGroup = [...new Set(config.competencies.map(c => c.pilar))][step - 2];
+    if (step >= 2 && step < identificationStep) {
+      const currentGroup = competencyGroups[step - 2];
       config.competencies.filter(c => c.pilar === currentGroup).forEach(c => {
         if (!scores[c.id]?.mastery) errors[`mastery-${c.id}`] = "Wajib diisi.";
         if (!scores[c.id]?.need) errors[`need-${c.id}`] = "Wajib diisi.";
       });
     }
-    if (step === 7) {
+    if (step === identificationStep) {
       if (!formats.length) errors.formats = "Pilih setidaknya satu bentuk pengembangan.";
       if (formats.includes("Lainnya") && !formatOther.trim()) errors.formatOther = "Tuliskan bentuk pengembangan lainnya.";
       if (!topics.length) errors.topics = "Pilih setidaknya satu topik prioritas.";
@@ -71,7 +76,7 @@ export default function SurveyPage() {
     }
     setValidationErrors(errors);
     if (Object.keys(errors).length) { setNotice("Periksa isian yang ditandai. Pertanyaan tersebut wajib diisi."); return; }
-    setNotice(""); setStep(n => Math.min(8, n + 1)); window.scrollTo({ top: 0, behavior: "smooth" });
+    setNotice(""); setStep(n => Math.min(totalSteps, n + 1)); window.scrollTo({ top: 0, behavior: "smooth" });
   }
   function back() { setNotice(""); setStep(n => Math.max(1, n - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }
   async function submit(e) {
@@ -79,7 +84,7 @@ export default function SurveyPage() {
     if (!db) { setNotice("Konfigurasi Supabase belum tersedia. Silakan hubungi administrator."); return; }
     setBusy(true);
     const response = {
-      ...profile, nama: profile.nama.trim(), nip: profile.nip.trim(),
+      ...profile, nama: profile.nama.trim(), nip: profile.nip.trim(), instrument_version: config.instrumentVersion,
       scores: config.competencies.map(c => ({ id: c.id, kode: c.code || c.id, kelompok: c.pilar, kompetensi: c.title, penguasaan: Number(scores[c.id].mastery), kebutuhan: Number(scores[c.id].need), gap: Number(scores[c.id].need) - Number(scores[c.id].mastery) })),
       bentuk_pengembangan: [...formats.filter(x => x !== "Lainnya"), ...(formats.includes("Lainnya") && formatOther.trim() ? [formatOther.trim()] : [])],
       topik_prioritas: [...topics.filter(x => x !== "Lainnya"), ...(topics.includes("Lainnya") && topicOther.trim() ? [topicOther.trim()] : [])],
@@ -92,18 +97,18 @@ export default function SurveyPage() {
     setDone(true); window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  const progress = done ? 100 : Math.round(step / 8 * 100);
-  const competencyGroups = [...new Set(config.competencies.map(c => c.pilar))];
+  const progress = done ? 100 : Math.round(step / totalSteps * 100);
   const groupIndex = step - 2;
   const groupTitle = competencyGroups[groupIndex];
   const groupLetter = String.fromCharCode(65 + groupIndex);
+  const groupDescription = config.competencies.find(c => c.pilar === groupTitle)?.description;
   return <div className="site-shell">
     <header className="topbar"><div className="brand"><span className="brand-mark">LAN RI</span><span><b>Deputi Bidang Peningkatan Kualitas Kebijakan</b><small>Bigger • Smarter • Better</small></span></div></header>
     <main className="container">
-      <section className="hero"><div className="eyebrow">Analisis Kebutuhan Pengembangan Kompetensi (AKPK)</div><h1>{config.surveyTitle}</h1><p>{config.intro}</p><div className="hero-meta"><span>Estimasi waktu: 6–8 menit</span><span>Skala penilaian 1–5</span><span>Pengembangan kapasitas SME</span></div></section>
+      <section className="hero"><div className="eyebrow">Analisis Kebutuhan Pengembangan Kompetensi (AKPK)</div><h1>{config.surveyTitle}</h1><p>{config.intro}</p><div className="hero-meta"><span>Estimasi waktu: 10–15 menit</span><span>Skala penilaian 1–5</span><span>Pengembangan kapasitas SME</span></div></section>
       {notice && <div className="notice" role="alert">{notice}</div>}
       {done ? <section className="card success"><div className="success-icon">✓</div><h2>Terima kasih!</h2><p>Jawaban survei kebutuhan bangkom Anda telah berhasil dikirim dan tercatat.</p><p>Masukan Bapak/Ibu akan membantu perencanaan program pengembangan kompetensi Deputi I LAN RI.</p></section> : <>
-        <section className="progress-card"><div><span>Kemajuan: {progress}%</span><b>Halaman {step} dari 8</b></div><div className="progress-track"><span style={{ width: `${progress}%` }} /></div></section>
+        <section className="progress-card"><div><span>Kemajuan: {progress}%</span><b>Halaman {step} dari {totalSteps}</b></div><div className="progress-track"><span style={{ width: `${progress}%` }} /></div></section>
         <form onSubmit={submit}>
           {step === 1 && <section className="card form-section"><SectionHeading n="1" title="Profil Responden" desc="Lengkapi data unit kerja dan profil jabatan Anda." />
             <div className="form-grid"><Field id="nama" label="Nama Lengkap *" error={validationErrors.nama}><input id="nama" required autoComplete="name" aria-invalid={Boolean(validationErrors.nama)} value={profile.nama} onChange={e => setProfileField("nama", e.target.value)} placeholder="Masukkan nama lengkap" /></Field><Field id="nip" label="NIP *" error={validationErrors.nip}><input id="nip" required inputMode="numeric" autoComplete="off" aria-invalid={Boolean(validationErrors.nip)} value={profile.nip} onChange={e => setProfileField("nip", e.target.value)} placeholder="Masukkan NIP" /></Field></div>
@@ -111,16 +116,16 @@ export default function SurveyPage() {
             <div className="form-grid"><Field id="jabatan" label="Kategori / Jenis Jabatan *" error={validationErrors.jabatan}><Select id="jabatan" options={positions} value={profile.jabatan} onChange={e => setProfileField("jabatan", e.target.value)} placeholder="Pilih jenis jabatan" /></Field><Field id="jenjang" label="Jenjang Jabatan Fungsional"><Select id="jenjang" options={["Tidak Berlaku / Bukan Pejabat Fungsional", "Ahli Pertama / Terampil", "Ahli Muda / Mahir", "Ahli Madya / Penyelia", "Ahli Utama"]} value={profile.jenjang} onChange={e => setProfileField("jenjang", e.target.value)} /></Field></div>
             <Field label="Masa kerja di lingkungan Deputi I LAN RI *" error={validationErrors.masa_kerja}><RadioList name="masa" options={years} value={profile.masa_kerja} onChange={v => setProfileField("masa_kerja", v)} compact /></Field><Nav next={next} nextLabel="Lanjut ke Penilaian Kompetensi →" />
           </section>}
-          {step >= 2 && step <= 6 && <section className="card form-section"><SectionHeading n={`Poin ${groupLetter} dari E`} title={groupTitle} desc="Nilai setiap pernyataan berdasarkan kemampuan Anda saat ini dan kebutuhan pengembangan kompetensi." />
+          {step >= 2 && step < identificationStep && <section className="card form-section"><SectionHeading n={`Poin ${groupLetter} dari ${String.fromCharCode(64 + groupCount)}`} title={groupTitle} desc={`${groupDescription ? `${groupDescription} ` : ""}Nilai setiap pernyataan berdasarkan kemampuan Anda saat ini dan kebutuhan pengembangan kompetensi.`} />
             <div className="scale-help"><p><b>Kemampuan saat ini</b><br />{scale.map((x, i) => `${i + 1} ${x}`).join(" · ")}</p><p><b>Kebutuhan pengembangan</b><br />{needScale.map((x, i) => `${i + 1} ${x}`).join(" · ")}</p></div>
-            <div className="competency-group"><div className="competency-list">{config.competencies.filter(c => c.pilar === groupTitle).map(c => <article className="competency" key={c.id}><div><small>{c.code || c.id}</small><b>{c.title}</b></div><Rating name={`${c.id}-mastery`} label="Kemampuan saat ini" value={scores[c.id]?.mastery || ""} labels={scale} error={validationErrors[`mastery-${c.id}`]} onChange={v => setScore(c.id, "mastery", v)} /><Rating name={`${c.id}-need`} label="Kebutuhan pengembangan" value={scores[c.id]?.need || ""} labels={needScale} error={validationErrors[`need-${c.id}`]} onChange={v => setScore(c.id, "need", v)} /></article>)}</div></div><Nav back={back} next={next} nextLabel={step < 6 ? `Lanjut ke poin ${String.fromCharCode(66 + groupIndex)} →` : "Lanjut ke Identifikasi Kebutuhan →"} />
+            <div className="competency-group"><div className="competency-list">{config.competencies.filter(c => c.pilar === groupTitle).map(c => <article className="competency" key={c.id}><div><small>{c.code || c.id}</small><b>{c.title}</b></div><Rating name={`${c.id}-mastery`} label="Kemampuan saat ini" value={scores[c.id]?.mastery || ""} labels={scale} error={validationErrors[`mastery-${c.id}`]} onChange={v => setScore(c.id, "mastery", v)} /><Rating name={`${c.id}-need`} label="Kebutuhan pengembangan" value={scores[c.id]?.need || ""} labels={needScale} error={validationErrors[`need-${c.id}`]} onChange={v => setScore(c.id, "need", v)} /></article>)}</div></div><Nav back={back} next={next} nextLabel={step < groupCount + 1 ? `Lanjut ke poin ${String.fromCharCode(66 + groupIndex)} →` : "Lanjut ke Identifikasi Kebutuhan →"} />
           </section>}
-          {step === 7 && <section className="card form-section"><SectionHeading n="7" title="Identifikasi Kebutuhan Pengembangan" desc="Pilih jenis, topik, dan metode pengembangan kompetensi yang paling sesuai." />
+          {step === identificationStep && <section className="card form-section"><SectionHeading n={String(identificationStep)} title="Identifikasi Kebutuhan Pengembangan" desc="Pilih jenis, topik, dan metode pengembangan kompetensi yang paling sesuai." />
             <Field label="Bentuk pengembangan kompetensi yang paling dibutuhkan (pilih maksimal 3) *" error={validationErrors.formats}><Checks name="formats" options={config.developmentFormats} value={formats} onChange={v => { toggle(formats, setFormats, v, 3); clearValidation("formats"); }} /></Field>{formats.includes("Lainnya") && <Field id="formatOther" label="Bentuk pengembangan lainnya *" error={validationErrors.formatOther}><input id="formatOther" value={formatOther} onChange={e => { setFormatOther(e.target.value); clearValidation("formatOther"); }} placeholder="Tuliskan bentuk yang dibutuhkan" /></Field>}
             <Field label="Topik / kompetensi yang paling diprioritaskan (pilih maksimal 3) *" error={validationErrors.topics}><Checks name="topics" options={config.priorityTopics} value={topics} onChange={v => { toggle(topics, setTopics, v, 3); clearValidation("topics"); }} /></Field>{topics.includes("Lainnya") && <Field id="topicOther" label="Topik lainnya *" error={validationErrors.topicOther}><input id="topicOther" value={topicOther} onChange={e => { setTopicOther(e.target.value); clearValidation("topicOther"); }} placeholder="Tuliskan topik prioritas" /></Field>}
             <Field label="Metode pembelajaran yang paling sesuai *" error={validationErrors.method}><RadioList name="method" options={config.learningMethods} value={method} onChange={v => { setMethod(v); clearValidation("method"); }} /></Field>{method === "Lainnya" && <Field id="methodOther" label="Metode pembelajaran lainnya *" error={validationErrors.methodOther}><input id="methodOther" value={methodOther} onChange={e => { setMethodOther(e.target.value); clearValidation("methodOther"); }} placeholder="Tuliskan metode yang sesuai" /></Field>}<Nav back={back} next={next} />
           </section>}
-          {step === 8 && <section className="card form-section"><SectionHeading n="8" title="Masukan Tambahan" desc="Tambahkan kebutuhan kompetensi yang belum tercakup dalam pilihan sebelumnya." /><Field label="Kompetensi atau topik lain yang perlu dikembangkan untuk mendukung tugas SME"><textarea rows={5} value={suggestion} onChange={e => setSuggestion(e.target.value)} placeholder="Tuliskan kompetensi atau topik yang Anda usulkan" /></Field><div className="nav-row"><button type="button" className="button secondary" onClick={back}>Kembali</button><button type="submit" className="button primary" disabled={busy}>{busy ? "Mengirim…" : "Kirim jawaban"}</button></div></section>}
+          {step === suggestionStep && <section className="card form-section"><SectionHeading n={String(suggestionStep)} title="Masukan Tambahan" desc="Tambahkan kebutuhan kompetensi yang belum tercakup dalam pilihan sebelumnya." /><Field label="Kompetensi atau topik lain yang perlu dikembangkan untuk mendukung tugas SME"><textarea rows={5} value={suggestion} onChange={e => setSuggestion(e.target.value)} placeholder="Tuliskan kompetensi atau topik yang Anda usulkan" /></Field><div className="nav-row"><button type="button" className="button secondary" onClick={back}>Kembali</button><button type="submit" className="button primary" disabled={busy}>{busy ? "Mengirim…" : "Kirim jawaban"}</button></div></section>}
         </form>
       </>}
     </main><footer className="footer">Lembaga Administrasi Negara Republik Indonesia (LAN RI) · Deputi Bidang Peningkatan Kualitas Kebijakan Administrasi Negara</footer>
