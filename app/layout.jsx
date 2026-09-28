@@ -7,10 +7,10 @@ export const metadata = {
   description: "Survei kebutuhan pengembangan kompetensi pegawai Deputi I LAN RI.",
   icons: {
     icon: [
-      { url: `${basePath}/icon.svg`, type: "image/svg+xml" },
+      { url: `${basePath}/icon.png`, type: "image/png" },
     ],
-    shortcut: [`${basePath}/icon.svg`],
-    apple: [`${basePath}/icon.svg`],
+    shortcut: [`${basePath}/icon.png`],
+    apple: [`${basePath}/icon.png`],
   },
 };
 
@@ -18,7 +18,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="id">
       <head>
-        <link rel="icon" href={`${basePath}/icon.svg`} type="image/svg+xml" />
+        <link rel="icon" href={`${basePath}/icon.png`} type="image/png" />
       </head>
       <body>{children}</body>
     </html>
