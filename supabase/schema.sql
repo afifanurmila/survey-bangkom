@@ -68,3 +68,45 @@ grant usage, select on sequence public.users_id_seq to anon, authenticated;
 -- Default starter config
 insert into public.survey_config (id, config) values ('main', '{"version":1}')
 on conflict (id) do nothing;
+
+-- 4. Table master_pegawai (58 Pegawai Deputi I LAN RI)
+create table if not exists public.master_pegawai (
+  no_urut integer primary key,
+  nama text not null,
+  nip text unique not null,
+  pendidikan text,
+  golongan text,
+  pangkat_golongan_ruang text,
+  tmt_gol date,
+  jabatan text,
+  jenjang_jabatan text,
+  tmt_jabatan date,
+  tmt_unit date,
+  unit_organisasi text,
+  gender text,
+  grading_new integer,
+  jenis_jabatan_2 text,
+  kode_jabatan text,
+  jenis_jabatan text,
+  status_asn text,
+  wilayah text,
+  angkatan integer,
+  tahun_lahir integer,
+  masa_kerja_organisasi integer,
+  kategori_masa_kerja_organisasi text,
+  usia integer,
+  kategori_usia text,
+  tanggal_lahir date,
+  bup integer,
+  tmt_pensiun date,
+  status_pegawai text,
+  generasi text,
+  agama text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.master_pegawai enable row level security;
+drop policy if exists "Allow all on master_pegawai" on public.master_pegawai;
+create policy "Allow all on master_pegawai" on public.master_pegawai for all to anon, authenticated using (true) with check (true);
+grant all on public.master_pegawai to anon, authenticated;
+
