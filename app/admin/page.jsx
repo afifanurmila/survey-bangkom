@@ -21,6 +21,8 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [deleting, setDeleting] = useState(false);
 
   // Navigation and Filter States
   const [activeTab, setActiveTab] = useState("diagram"); // 'diagram' | 'orang' | 'pegawai' | 'rekap' | 'editor'
@@ -96,6 +98,35 @@ export default function AdminPage() {
   function notify(text, isError = false) {
     setMessage(text);
     setError(isError);
+  }
+
+  const visibleResponses = responses.slice(0, 100);
+  const allVisibleSelected = !useSampleData && visibleResponses.length > 0 && visibleResponses.every((row) => selectedIds.includes(row.id));
+  function toggleResponse(id) {
+    setSelectedIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]);
+  }
+  function toggleVisibleResponses() {
+    setSelectedIds((ids) => allVisibleSelected
+      ? ids.filter((id) => !visibleResponses.some((row) => row.id === id))
+      : [...new Set([...ids, ...visibleResponses.map((row) => row.id)])]);
+  }
+  async function deleteSelectedResponses() {
+    if (!selectedIds.length || deleting || useSampleData || !db) return;
+    if (!window.confirm(`Hapus ${selectedIds.length} respons terpilih secara permanen? Tindakan ini tidak bisa dibatalkan.`)) return;
+    const deletePassword = window.prompt("Masukkan kembali kata sandi administrator untuk mengonfirmasi penghapusan:");
+    if (deletePassword === null) return;
+    setDeleting(true);
+    const { data: deletedCount, error: issue } = await db.rpc("delete_selected_survey_responses", {
+      p_ids: selectedIds,
+      p_username: adminUser?.username || "",
+      p_password: deletePassword,
+    });
+    setDeleting(false);
+    if (issue) return notify(`Respons belum terhapus: ${issue.message}. Pastikan SQL izin hapus sudah dijalankan di Supabase.`, true);
+    if (!deletedCount) return notify("Tidak ada respons terhapus. Periksa kata sandi administrator dan pilihan respons.", true);
+    setResponses((rows) => rows.filter((row) => !selectedIds.includes(row.id)));
+    setSelectedIds([]);
+    notify(`${deletedCount} respons terpilih berhasil dihapus.`);
   }
 
   async function signIn(e) {
@@ -299,22 +330,6 @@ export default function AdminPage() {
       await load();
     } catch (e) {
       notify(`Gagal membuat data simulasi: ${e.message}`, true);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function clearAllResponses() {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus seluruh data respons masuk?")) return;
-    if (!db) return;
-    setBusy(true);
-    try {
-      const { error: delError } = await db.from("survey_responses").delete().neq("id", 0);
-      if (delError) throw delError;
-      notify("Seluruh data respons telah dibersihkan.");
-      await load();
-    } catch (e) {
-      notify(`Gagal menghapus data: ${e.message}`, true);
     } finally {
       setBusy(false);
     }
@@ -712,16 +727,6 @@ export default function AdminPage() {
                 >
                   🎲 Isi Contoh Data Simulasi
                 </button>
-                {responses.length > 0 && (
-                  <button
-                    className="button secondary"
-                    onClick={clearAllResponses}
-                    disabled={busy}
-                    style={{ color: "var(--danger)" }}
-                  >
-                    🗑️ Reset Data
-                  </button>
-                )}
                 <button className="button secondary" onClick={load} disabled={busy}>
                   {busy ? "Memuat…" : "↻ Muat Ulang"}
                 </button>
@@ -1721,14 +1726,19 @@ export default function AdminPage() {
                   <p>Ekspor seluruh hasil kuesioner ke format CSV untuk analisis spreadsheet atau arsip.</p>
                 </div>
                 <div className="actions" style={{ margin: "14px 0" }}>
+                  <button className="button danger" onClick={deleteSelectedResponses} disabled={!selectedIds.length || deleting || useSampleData}>
+                    {deleting ? "Menghapus…" : `Hapus respons terpilih${selectedIds.length ? ` (${selectedIds.length})` : ""}`}
+                  </button>
                   <button className="button primary" onClick={exportCsv} disabled={!responses.length}>
                     📥 Unduh Rekap Lengkap (CSV)
                   </button>
                 </div>
+                {useSampleData && <p className="notice">Data simulasi tidak bisa dihapus karena bukan respons tersimpan.</p>}
                 <div className="table-wrap">
                   <table>
                     <thead>
                       <tr>
+                        <th><input type="checkbox" aria-label="Pilih semua respons yang tampil" checked={allVisibleSelected} disabled={useSampleData} onChange={toggleVisibleResponses} /></th>
                         <th>Waktu Masuk</th>
                         <th>Nama & NIP</th>
                         <th>Unit Kerja</th>
@@ -1737,11 +1747,12 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {responses.slice(0, 100).map((row) => {
+                      {visibleResponses.map((row) => {
                         const r = row.response || {};
                         const top = [...(r.scores || [])].sort((a, b) => Number(b.gap) - Number(a.gap))[0];
                         return (
                           <tr key={row.id}>
+                            <td><input type="checkbox" aria-label={`Pilih respons ${r.nama || "tanpa nama"}`} checked={!useSampleData && selectedIds.includes(row.id)} disabled={useSampleData} onChange={() => toggleResponse(row.id)} /></td>
                             <td>{new Date(row.created_at).toLocaleString("id-ID")}</td>
                             <td>
                               <b>{r.nama || "—"}</b>
@@ -1761,7 +1772,7 @@ export default function AdminPage() {
                       })}
                       {!responses.length && (
                         <tr>
-                          <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
+                          <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
                             Belum ada respons masuk.
                           </td>
                         </tr>

@@ -6,7 +6,7 @@
 9:I[75016,["/survey-bangkom/_next/static/chunks/1om59xoa9p2h0.js"],"IconMark"]
 b:I[50606,["/survey-bangkom/_next/static/chunks/1om59xoa9p2h0.js"],"default"]
 c:I[56092,["/survey-bangkom/_next/static/chunks/1om59xoa9p2h0.js"],"default"]
-:HL["/survey-bangkom/_next/static/chunks/1wn_o1l79pthc.css","style"]
+:HL["/survey-bangkom/_next/static/chunks/1kcdm1wdmx5ds.css","style"]
 6:X
 e:X
 e:C

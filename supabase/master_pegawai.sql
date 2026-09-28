@@ -36,8 +36,8 @@ create table if not exists public.master_pegawai (
 
 alter table public.master_pegawai enable row level security;
 drop policy if exists "Allow all on master_pegawai" on public.master_pegawai;
-create policy "Allow all on master_pegawai" on public.master_pegawai for all to anon, authenticated using (true) with check (true);
-grant all on public.master_pegawai to anon, authenticated;
+drop policy if exists "Admins can read master_pegawai" on public.master_pegawai;
+revoke all on public.master_pegawai from anon, authenticated;
 
 -- 2. Insert / Upsert 58 Data Pegawai Deputi I LAN RI
 insert into public.master_pegawai (
