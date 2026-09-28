@@ -462,11 +462,11 @@ export default function SurveyPage() {
                     </div>
                   )}
 
-                  <Nav next={next} nextLabel="Lanjut ke Penilaian Kompetensi →" />
+                  <Nav next={next} nextLabel="Lanjut ke Pemetaan Kompetensi →" />
                 </section>
               )}
 
-              {/* STEP 2..N: PENILAIAN KOMPETENSI */}
+              {/* STEP 2..N: PEMETAAN KOMPETENSI */}
               {step >= 2 && step < identificationStep && (
                 <section className="card form-section">
                   <SectionHeading
@@ -686,7 +686,7 @@ function Nav({ back, next, nextLabel = "Lanjut" }) {
       )}
       <button
         type="button"
-        className={`button primary ${nextLabel.startsWith("Lanjut ke Penilaian") ? "continue-specific" : ""}`}
+        className={`button primary ${nextLabel.startsWith("Lanjut ke Pemetaan") ? "continue-specific" : ""}`}
         onClick={next}
       >
         {nextLabel}
