@@ -1,2 +1,2 @@
 :HL["/survey-bangkom/_next/static/chunks/1kcdm1wdmx5ds.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"l_eyWxusfMFAzMRX5g79n"}
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"GqpFk7p4P26EfW9B9fuCv"}
