@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { DEFAULT_CONFIG } from "../lib/default-config";
+import { SME_DOMAINS } from "../lib/sme-topics-data";
 import masterPegawaiData from "../lib/master-pegawai-data.json";
 import { getSupabase } from "../lib/supabase";
 
@@ -89,6 +90,8 @@ export default function SurveyPage() {
     gender: "",
   });
   const [scores, setScores] = useState({});
+  const [smeDomains, setSmeDomains] = useState([]);
+  const [smeSubtopics, setSmeSubtopics] = useState([]);
   const [formats, setFormats] = useState([]);
   const [formatOther, setFormatOther] = useState("");
   const [topics, setTopics] = useState([]);
@@ -230,10 +233,10 @@ export default function SurveyPage() {
         });
     }
     if (step === identificationStep) {
+      if (!smeDomains.length) errors.smeDomains = "Pilih setidaknya 1 Rumpun Kepakaran SME yang diminati.";
+      if (!smeSubtopics.length) errors.smeSubtopics = "Pilih setidaknya 1 sub-topik materi bangkom yang dibutuhkan.";
       if (!formats.length) errors.formats = "Pilih setidaknya satu bentuk pengembangan.";
       if (formats.includes("Lainnya") && !formatOther.trim()) errors.formatOther = "Tuliskan bentuk pengembangan lainnya.";
-      if (!topics.length) errors.topics = "Pilih setidaknya satu topik prioritas.";
-      if (topics.includes("Lainnya") && !topicOther.trim()) errors.topicOther = "Tuliskan topik lainnya.";
       if (!method) errors.method = "Metode pembelajaran wajib dipilih.";
       if (method === "Lainnya" && !methodOther.trim()) errors.methodOther = "Tuliskan metode pembelajaran lainnya.";
     }
@@ -261,6 +264,7 @@ export default function SurveyPage() {
       return;
     }
     setBusy(true);
+    const selectedSmeDomainObjects = smeDomains.map((id) => SME_DOMAINS.find((d) => d.id === id)).filter(Boolean);
     const response = {
       ...profile,
       nama: profile.nama.trim(),
@@ -275,11 +279,14 @@ export default function SurveyPage() {
         kebutuhan: Number(scores[c.id]?.need || 0),
         gap: Number(scores[c.id]?.need || 0) - Number(scores[c.id]?.mastery || 0),
       })),
+      sme_domains: selectedSmeDomainObjects.map((d) => d.title),
+      sme_domain_codes: selectedSmeDomainObjects.map((d) => d.code),
+      sme_subtopics: smeSubtopics,
       bentuk_pengembangan: [
         ...formats.filter((x) => x !== "Lainnya"),
         ...(formats.includes("Lainnya") && formatOther.trim() ? [formatOther.trim()] : []),
       ],
-      topik_prioritas: [
+      topik_prioritas: smeSubtopics.length ? smeSubtopics : [
         ...topics.filter((x) => x !== "Lainnya"),
         ...(topics.includes("Lainnya") && topicOther.trim() ? [topicOther.trim()] : []),
       ],
@@ -527,16 +534,133 @@ export default function SurveyPage() {
                 </section>
               )}
 
-              {/* STEP IDENTIFIKASI KEBUTUHAN */}
+              {/* STEP IDENTIFIKASI KEBUTUHAN BANGKOM SME */}
               {step === identificationStep && (
                 <section className="card form-section">
                   <SectionHeading
                     n={String(identificationStep)}
-                    title="Identifikasi Kebutuhan Pengembangan"
-                    desc="Pilih jenis, topik, dan metode pengembangan kompetensi yang paling sesuai."
+                    title="Identifikasi Kebutuhan Pengembangan & Peminatan SME"
+                    desc="Pilih rumpun kepakaran Subject Matter Expert (SME), sub-topik materi, serta bentuk dan metode pembelajaran yang paling sesuai."
                   />
+
+                  {/* 1. PILIHAN RUMPUN KEPATARAN SME */}
                   <Field
-                    label="Bentuk pengembangan kompetensi yang paling dibutuhkan (pilih maksimal 3) *"
+                    label="1. Rumpun Kepakaran Subject Matter Expert (SME) yang Diminati (Pilih 1 s.d. 3 Rumpun) *"
+                    error={validationErrors.smeDomains}
+                    helper="Pilih bidang kepakaran yang paling relevan dengan minat pengembangan karier atau tugas fungsi Anda."
+                  >
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px", marginTop: "4px" }}>
+                      {SME_DOMAINS.map((domain) => {
+                        const isSelected = smeDomains.includes(domain.id);
+                        return (
+                          <div
+                            key={domain.id}
+                            onClick={() => {
+                              toggle(smeDomains, (updater) => {
+                                setSmeDomains((prev) => {
+                                  const nextList = typeof updater === "function" ? updater(prev) : updater;
+                                  if (prev.includes(domain.id) && !nextList.includes(domain.id)) {
+                                    setSmeSubtopics((subPrev) => subPrev.filter((st) => !domain.topics.includes(st)));
+                                  }
+                                  return nextList;
+                                });
+                              }, domain.id, 3);
+                              setValidationErrors((prev) => ({ ...prev, smeDomains: "" }));
+                            }}
+                            style={{
+                              border: isSelected ? "2px solid var(--navy)" : "1px solid var(--line)",
+                              background: isSelected ? "#f0f7fb" : "#fff",
+                              borderRadius: "12px",
+                              padding: "14px 16px",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: "12px",
+                              boxShadow: isSelected ? "0 3px 10px rgba(10, 77, 104, 0.12)" : "none"
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              readOnly
+                              style={{ width: "18px", height: "18px", marginTop: "2px", accentColor: "var(--blue)" }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                                <span style={{ fontSize: "16px" }}>{domain.icon}</span>
+                                <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--blue)", letterSpacing: "0.05em" }}>
+                                  RUMPUN {domain.code}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--ink)", lineHeight: 1.4 }}>
+                                {domain.title}
+                              </div>
+                              <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px" }}>
+                                {domain.topics.length} sub-topik materi
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Field>
+
+                  {/* 2. PILIHAN SUB-TOPIK SPESIFIK */}
+                  {smeDomains.length > 0 && (
+                    <Field
+                      label="2. Sub-Topik Materi Bangkom yang Dibutuhkan / Diprioritaskan *"
+                      error={validationErrors.smeSubtopics}
+                      helper="Centang sub-topik materi pelatihan yang ingin Anda ikuti pada rumpun kepakaran yang telah dipilih di atas."
+                    >
+                      <div style={{ display: "grid", gap: "14px", marginTop: "6px" }}>
+                        {smeDomains.map((domainId) => {
+                          const domain = SME_DOMAINS.find((d) => d.id === domainId);
+                          if (!domain) return null;
+                          return (
+                            <div
+                              key={domain.id}
+                              style={{
+                                background: "#f8fafb",
+                                border: "1px solid #dce4e9",
+                                borderRadius: "12px",
+                                padding: "16px 18px",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", borderBottom: "1px solid #e9eef1", paddingBottom: "8px" }}>
+                                <span style={{ fontSize: "18px" }}>{domain.icon}</span>
+                                <div>
+                                  <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--blue)" }}>RUMPUN {domain.code}</span>
+                                  <h4 style={{ margin: 0, fontSize: "14px", color: "var(--navy)" }}>{domain.title}</h4>
+                                </div>
+                              </div>
+                              <div className="choice-grid">
+                                {domain.topics.map((topic) => (
+                                  <label className="answer-choice" key={topic}>
+                                    <input
+                                      type="checkbox"
+                                      checked={smeSubtopics.includes(topic)}
+                                      onChange={() => {
+                                        setSmeSubtopics((prev) =>
+                                          prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
+                                        );
+                                        setValidationErrors((prev) => ({ ...prev, smeSubtopics: "" }));
+                                      }}
+                                    />
+                                    <span>{topic}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Field>
+                  )}
+
+                  {/* 3. BENTUK PENGEMBANGAN */}
+                  <Field
+                    label="3. Bentuk Pengembangan Kompetensi yang Paling Dibutuhkan (Pilih Maksimal 3) *"
                     error={validationErrors.formats}
                   >
                     <Checks
@@ -545,7 +669,7 @@ export default function SurveyPage() {
                       value={formats}
                       onChange={(v) => {
                         toggle(formats, setFormats, v, 3);
-                        clearValidation("formats");
+                        setValidationErrors((prev) => ({ ...prev, formats: "" }));
                       }}
                     />
                   </Field>
@@ -560,49 +684,22 @@ export default function SurveyPage() {
                         value={formatOther}
                         onChange={(e) => {
                           setFormatOther(e.target.value);
-                          clearValidation("formatOther");
+                          setValidationErrors((prev) => ({ ...prev, formatOther: "" }));
                         }}
                         placeholder="Tuliskan bentuk yang dibutuhkan"
                       />
                     </Field>
                   )}
 
-                  <Field
-                    label="Topik / kompetensi yang paling diprioritaskan (pilih maksimal 3) *"
-                    error={validationErrors.topics}
-                  >
-                    <Checks
-                      name="topics"
-                      options={config.priorityTopics}
-                      value={topics}
-                      onChange={(v) => {
-                        toggle(topics, setTopics, v, 3);
-                        clearValidation("topics");
-                      }}
-                    />
-                  </Field>
-                  {topics.includes("Lainnya") && (
-                    <Field id="topicOther" label="Topik lainnya *" error={validationErrors.topicOther}>
-                      <input
-                        id="topicOther"
-                        value={topicOther}
-                        onChange={(e) => {
-                          setTopicOther(e.target.value);
-                          clearValidation("topicOther");
-                        }}
-                        placeholder="Tuliskan topik prioritas"
-                      />
-                    </Field>
-                  )}
-
-                  <Field label="Metode pembelajaran yang paling sesuai *" error={validationErrors.method}>
+                  {/* 4. METODE PEMBELAJARAN */}
+                  <Field label="4. Metode Pembelajaran yang Paling Sesuai *" error={validationErrors.method}>
                     <RadioList
                       name="method"
                       options={config.learningMethods}
                       value={method}
                       onChange={(v) => {
                         setMethod(v);
-                        clearValidation("method");
+                        setValidationErrors((prev) => ({ ...prev, method: "" }));
                       }}
                     />
                   </Field>
@@ -617,12 +714,13 @@ export default function SurveyPage() {
                         value={methodOther}
                         onChange={(e) => {
                           setMethodOther(e.target.value);
-                          clearValidation("methodOther");
+                          setValidationErrors((prev) => ({ ...prev, methodOther: "" }));
                         }}
                         placeholder="Tuliskan metode yang sesuai"
                       />
                     </Field>
                   )}
+
                   <Nav back={back} next={next} />
                 </section>
               )}

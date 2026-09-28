@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import bcrypt from "bcryptjs";
 import { DEFAULT_CONFIG } from "../../lib/default-config";
+import { SME_DOMAINS } from "../../lib/sme-topics-data";
 import { SAMPLE_RESPONSES } from "../../lib/sample-data";
 import masterPegawaiData from "../../lib/master-pegawai-data.json";
 import { getSupabase } from "../../lib/supabase";
@@ -25,7 +26,7 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState(false);
 
   // Navigation and Filter States
-  const [activeTab, setActiveTab] = useState("diagram"); // 'diagram' | 'orang' | 'pegawai' | 'rekap' | 'editor'
+  const [activeTab, setActiveTab] = useState("diagram"); // 'diagram' | 'orang' | 'sme' | 'pegawai' | 'rekap' | 'editor'
   const [filterUnit, setFilterUnit] = useState("ALL");
   const [filterJabatan, setFilterJabatan] = useState("ALL");
   const [filterStatusPartisipasi, setFilterStatusPartisipasi] = useState("ALL"); // 'ALL' | 'SUDAH' | 'BELUM'
@@ -33,6 +34,7 @@ export default function AdminPage() {
   const [cutoffMode, setCutoffMode] = useState("dynamic"); // 'dynamic' | 'midpoint'
   const [searchPerson, setSearchPerson] = useState("");
   const [expandedPersonId, setExpandedPersonId] = useState(null);
+  const [expandedSmeDomain, setExpandedSmeDomain] = useState(null);
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [selectedCompetencyId, setSelectedCompetencyId] = useState(null);
 
@@ -231,7 +233,14 @@ export default function AdminPage() {
           biasNeed: 4.2,
           biasMastery: 3.1,
           prefFormats: ["Pelatihan", "Workshop", "Sharing knowledge"],
-          prefTopics: ["Analisis kebijakan", "Quality control", "Inovasi"],
+          smeDomains: ["Manajemen Kebijakan", "Inovasi Administrasi Negara"],
+          smeCodes: ["B", "G"],
+          smeSubtopics: [
+            "Riset kebijakan / Analisis kebijakan",
+            "Policy Impact assessment",
+            "Design Thinking",
+            "Public Sector Innovation"
+          ],
           prefMethod: "Blended/hybrid",
         },
         {
@@ -244,33 +253,52 @@ export default function AdminPage() {
           biasNeed: 4.6,
           biasMastery: 2.6,
           prefFormats: ["Mentoring", "Coaching", "Praktik/studi kasus"],
-          prefTopics: ["Riset/metodologi", "Kolaborasi dan stakeholder", "Publikasi"],
+          smeDomains: ["Manajemen Kebijakan", "Hukum Administrasi Negara"],
+          smeCodes: ["B", "F"],
+          smeSubtopics: [
+            "Perumusan kebijakan publik",
+            "Legal Drafting",
+            "Regulatory Impact Assessment (RIA, ROCCIPI, AHP, dll)"
+          ],
           prefMethod: "Praktik langsung/studi kasus",
         },
         {
           nama: "Drs. Hendra Gunawan, M.M.",
           nip: "197504201999031001",
-          unit: "Direktorat Penguatan Kapasitas Jabatan Fungsional",
+          unit: "Direktorat Penguatan Kapasitas Jabatan Fungsional Bidang Pengembangan Kapasitas dan Pembelajaran Aparatur Sipil Negara",
           jabatan: "Administrator / Pengawas : Pejabat Pengelola Unit",
           jenjang: "Tidak Berlaku / Bukan Pejabat Fungsional",
           masa_kerja: "> 5 tahun",
           biasNeed: 3.8,
           biasMastery: 4.0,
           prefFormats: ["Workshop", "Sharing knowledge", "Bedah buku"],
-          prefTopics: ["Manajemen pengetahuan", "Analisis kebijakan", "Inovasi"],
+          smeDomains: ["Kepemimpinan", "Tata Kelola Organisasi, Manajemen Kinerja, Pengadaan Barjas, Perencanaan Anggaran"],
+          smeCodes: ["D", "H"],
+          smeSubtopics: [
+            "Digital Leadership",
+            "Kepemimpinan Transformasional",
+            "Manajemen Risiko",
+            "Data governance"
+          ],
           prefMethod: "Tatap muka",
         },
         {
           nama: "Dewi Lestari, S.E., M.E.",
           nip: "199511082019022003",
-          unit: "Bagian Tata Usaha / Sekretariat Deputi I",
+          unit: "Kedeputian Bidang Peningkatan Kualitas Kebijakan Administrasi Negara",
           jabatan: "Pelaksana : Pengolah data, Pengadministrasi, Pengelola Layanan, dll.",
           jenjang: "Tidak Berlaku / Bukan Pejabat Fungsional",
           masa_kerja: "1 – 3 tahun",
           biasNeed: 4.4,
           biasMastery: 2.9,
           prefFormats: ["Pelatihan", "Workshop", "Praktik/studi kasus"],
-          prefTopics: ["Konten pembelajaran", "Manajemen pengetahuan", "Quality control"],
+          smeDomains: ["Pengembangan Kompetensi", "Manajemen ASN"],
+          smeCodes: ["E", "C"],
+          smeSubtopics: [
+            "Corporate University",
+            "Analisis Pengembangan Kompetensi",
+            "Human Capital Development Plan (HCDP)"
+          ],
           prefMethod: "Daring",
         },
         {
@@ -283,7 +311,13 @@ export default function AdminPage() {
           biasNeed: 4.1,
           biasMastery: 3.7,
           prefFormats: ["Mentoring", "Sharing knowledge", "Coaching"],
-          prefTopics: ["Inovasi", "Analisis kebijakan", "Riset/metodologi"],
+          smeDomains: ["Kelembagaan Organisasi Pemerintah", "Inovasi Administrasi Negara"],
+          smeCodes: ["A", "G"],
+          smeSubtopics: [
+            "Desain organisasi modern & adaptive governance",
+            "Public Sector Innovation",
+            "Co-creation & collaborative innovation"
+          ],
           prefMethod: "Pendampingan/coaching",
         },
       ];
@@ -315,8 +349,11 @@ export default function AdminPage() {
             masa_kerja: person.masa_kerja,
             instrument_version: config.instrumentVersion,
             scores: scores,
+            sme_domains: person.smeDomains,
+            sme_domain_codes: person.smeCodes,
+            sme_subtopics: person.smeSubtopics,
             bentuk_pengembangan: person.prefFormats,
-            topik_prioritas: person.prefTopics,
+            topik_prioritas: person.smeSubtopics,
             metode_pembelajaran: person.prefMethod,
             kompetensi_lain: "Perlu penguatan kapasitas metode analitik kebijakan berbasis AI dan data science.",
           },
@@ -562,6 +599,74 @@ export default function AdminPage() {
     return { total, submitted, pending, percentage };
   }, [pegawaiList, responses]);
 
+  // Calculate SME Domain & Subtopic Analytics
+  const smeAnalytics = useMemo(() => {
+    const list = filterUnit === "ALL" 
+      ? responses 
+      : responses.filter((r) => r.response?.unit === filterUnit);
+
+    const totalRespondents = list.length;
+
+    const domainStats = SME_DOMAINS.map((domain) => {
+      const respondentsInDomain = list.filter((r) => {
+        const resp = r.response || {};
+        const chosenDomains = resp.sme_domains || [];
+        const chosenCodes = resp.sme_domain_codes || [];
+        const chosenSubtopics = resp.sme_subtopics || resp.topik_prioritas || [];
+        
+        const matchesTitle = chosenDomains.some((d) => d.toLowerCase() === domain.title.toLowerCase());
+        const matchesCode = chosenCodes.includes(domain.code);
+        const matchesSubtopics = domain.topics.some((t) => chosenSubtopics.includes(t));
+        
+        return matchesTitle || matchesCode || matchesSubtopics;
+      });
+
+      const count = respondentsInDomain.length;
+      const percentage = totalRespondents > 0 ? Math.round((count / totalRespondents) * 100) : 0;
+
+      const topicCounts = domain.topics.map((topic) => {
+        const topicRespondents = list.filter((r) => {
+          const resp = r.response || {};
+          const subtopics = resp.sme_subtopics || resp.topik_prioritas || [];
+          return subtopics.includes(topic);
+        });
+        return {
+          topic,
+          count: topicRespondents.length,
+          percentage: totalRespondents > 0 ? Math.round((topicRespondents.length / totalRespondents) * 100) : 0,
+          respondents: topicRespondents.map((r) => ({
+            id: r.id,
+            nama: r.response?.nama || "Tanpa Nama",
+            nip: r.response?.nip || "",
+            jabatan: r.response?.jabatan || "",
+            unit: r.response?.unit || "",
+          })),
+        };
+      }).sort((a, b) => b.count - a.count);
+
+      return {
+        ...domain,
+        count,
+        percentage,
+        respondents: respondentsInDomain.map((r) => ({
+          id: r.id,
+          nama: r.response?.nama || "Tanpa Nama",
+          nip: r.response?.nip || "",
+          jabatan: r.response?.jabatan || "",
+          unit: r.response?.unit || "",
+          subtopics: (r.response?.sme_subtopics || r.response?.topik_prioritas || []).filter((st) => domain.topics.includes(st)),
+        })),
+        topicCounts,
+      };
+    }).sort((a, b) => b.count - a.count);
+
+    const topDomain = domainStats.length ? domainStats[0] : null;
+    const allTopicsFlattened = domainStats.flatMap((d) => d.topicCounts).sort((a, b) => b.count - a.count);
+    const topTopic = allTopicsFlattened.length ? allTopicsFlattened[0] : null;
+
+    return { totalRespondents, domainStats, topDomain, topTopic, allTopics: allTopicsFlattened };
+  }, [responses, filterUnit]);
+
   // Export to CSV Function
   function exportCsv() {
     const fields = [
@@ -573,6 +678,8 @@ export default function AdminPage() {
       "jabatan",
       "jenjang",
       "masa_kerja",
+      "rumpun_sme_diminati",
+      "subtopik_sme_prioritas",
       "bentuk_pengembangan",
       "topik_prioritas",
       "metode_pembelajaran",
@@ -602,10 +709,12 @@ export default function AdminPage() {
         r.jabatan,
         r.jenjang,
         r.masa_kerja,
-        r.bentuk_pengembangan,
-        r.topik_prioritas,
-        r.metode_pembelajaran,
-        r.kompetensi_lain,
+        r.sme_domains || [],
+        r.sme_subtopics || [],
+        r.bentuk_pengembangan || [],
+        r.topik_prioritas || [],
+        r.metode_pembelajaran || "",
+        r.kompetensi_lain || "",
         JSON.stringify(r.scores || []),
       ];
       config.competencies.forEach((c) => {
@@ -796,6 +905,12 @@ export default function AdminPage() {
                 onClick={() => setActiveTab("orang")}
               >
                 👤 Analisis Gap Per Responden ({filteredResponses.length})
+              </button>
+              <button
+                className={`tab-btn ${activeTab === "sme" ? "active" : ""}`}
+                onClick={() => setActiveTab("sme")}
+              >
+                🎯 Peta Minat & Kebutuhan SME
               </button>
               <button
                 className={`tab-btn ${activeTab === "pegawai" ? "active" : ""}`}
@@ -1576,6 +1691,318 @@ export default function AdminPage() {
                   )}
                 </section>
               </>
+            )}
+
+            {/* TAB: PETA MINAT & KEBUTUHAN BANGKOM SME (8 RUMPUN) */}
+            {activeTab === "sme" && (
+              <section className="card">
+                <div className="section-heading">
+                  <span>USULAN BANGKOM SUBJECT MATTER EXPERT (SME)</span>
+                  <h2>Peta Minat & Kebutuhan Pelatihan per Rumpun SME</h2>
+                  <p>
+                    Pemetaan preferensi 8 rumpun kepakaran SME LAN RI dan kebutuhan materi spesifik untuk perencanaan pelatihan, coaching, dan talent pool Deputi I.
+                  </p>
+                </div>
+
+                {/* Filter Control */}
+                <div className="filter-card" style={{ marginTop: "16px" }}>
+                  <div className="filter-item">
+                    <label>Filter Unit Organisasi</label>
+                    <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)}>
+                      <option value="ALL">Semua Unit Kerja ({responses.length} Responden)</option>
+                      {availableUnits.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="filter-item">
+                    <label>Cari Sub-Topik / Kata Kunci</label>
+                    <input
+                      type="text"
+                      placeholder="Cari materi atau topik SME..."
+                      value={searchPerson}
+                      onChange={(e) => setSearchPerson(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Summary Highlights */}
+                <div className="stats-grid">
+                  <article className="stat-card">
+                    <span>Responden Tersaring</span>
+                    <b>{smeAnalytics.totalRespondents} ASN</b>
+                  </article>
+                  <article className="stat-card" style={{ borderLeft: "4px solid #088395" }}>
+                    <span>Rumpun Terfavorit #1</span>
+                    <b className="stat-small" style={{ color: "var(--navy)", marginTop: "4px" }}>
+                      {smeAnalytics.topDomain ? `${smeAnalytics.topDomain.icon} ${smeAnalytics.topDomain.title}` : "—"}
+                    </b>
+                    <small style={{ color: "var(--muted)", fontSize: "11px" }}>
+                      {smeAnalytics.topDomain ? `${smeAnalytics.topDomain.count} ASN (${smeAnalytics.topDomain.percentage}%)` : ""}
+                    </small>
+                  </article>
+                  <article className="stat-card" style={{ borderLeft: "4px solid #d4af37" }}>
+                    <span>Sub-Topik Paling Banyak Diminta</span>
+                    <b className="stat-small" style={{ color: "#92400e", marginTop: "4px" }}>
+                      {smeAnalytics.topTopic ? smeAnalytics.topTopic.topic : "—"}
+                    </b>
+                    <small style={{ color: "var(--muted)", fontSize: "11px" }}>
+                      {smeAnalytics.topTopic ? `${smeAnalytics.topTopic.count} Permintaan (${smeAnalytics.topTopic.percentage}%)` : ""}
+                    </small>
+                  </article>
+                </div>
+
+                {/* 8 SME Rumpun Visual Cards */}
+                <div style={{ marginTop: "24px" }}>
+                  <h3 style={{ fontSize: "16px", color: "var(--navy)", margin: "0 0 14px" }}>
+                    📊 Distribusi Minat Pegawai pada 8 Rumpun SME
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px" }}>
+                    {smeAnalytics.domainStats.map((domain, rankIdx) => {
+                      const isExpanded = expandedSmeDomain === domain.id;
+                      return (
+                        <div
+                          key={domain.id}
+                          style={{
+                            border: "1px solid #dce4e9",
+                            borderRadius: "14px",
+                            background: domain.count > 0 ? "#fff" : "#fafbfc",
+                            padding: "18px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "12px",
+                            boxShadow: "0 2px 8px rgba(0, 43, 73, 0.04)",
+                            position: "relative"
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <span style={{ fontSize: "24px" }}>{domain.icon}</span>
+                              <div>
+                                <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--blue)", letterSpacing: "0.06em" }}>
+                                  RUMPUN {domain.code} · PERINGKAT #{rankIdx + 1}
+                                </span>
+                                <h4 style={{ margin: "2px 0 0", fontSize: "14px", color: "var(--navy)", lineHeight: 1.3 }}>
+                                  {domain.title}
+                                </h4>
+                              </div>
+                            </div>
+                            <span
+                              style={{
+                                background: domain.count > 0 ? "#e8f4f8" : "#f1f5f9",
+                                color: domain.count > 0 ? "var(--navy)" : "#94a3b8",
+                                padding: "4px 10px",
+                                borderRadius: "999px",
+                                fontSize: "12px",
+                                fontWeight: "800",
+                                whiteSpace: "nowrap"
+                              }}
+                            >
+                              {domain.count} ASN ({domain.percentage}%)
+                            </span>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div style={{ height: "7px", background: "#edf2f5", borderRadius: "999px", overflow: "hidden" }}>
+                            <div
+                              style={{
+                                width: `${domain.percentage}%`,
+                                height: "100%",
+                                background: rankIdx === 0 ? "linear-gradient(90deg, #088395, #d4af37)" : "linear-gradient(90deg, #0a4d68, #088395)",
+                                borderRadius: "999px"
+                              }}
+                            />
+                          </div>
+
+                          {/* Top Requested Subtopics in this domain */}
+                          <div>
+                            <span style={{ fontSize: "10px", fontWeight: "700", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                              Materi / Sub-Topik Dibutuhkan ({domain.topicCounts.filter(t => t.count > 0).length} dipilih):
+                            </span>
+                            <div style={{ display: "grid", gap: "6px", marginTop: "6px" }}>
+                              {domain.topicCounts.map((tc) => {
+                                const isMatchesSearch = !searchPerson || tc.topic.toLowerCase().includes(searchPerson.toLowerCase());
+                                if (!isMatchesSearch) return null;
+                                return (
+                                  <div
+                                    key={tc.topic}
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                      padding: "6px 10px",
+                                      borderRadius: "8px",
+                                      background: tc.count > 0 ? "#f8fafb" : "#fbfcfd",
+                                      border: tc.count > 0 ? "1px solid #e2e8ec" : "1px dashed #eef2f5",
+                                      fontSize: "11px"
+                                    }}
+                                  >
+                                    <span style={{ color: tc.count > 0 ? "var(--ink)" : "var(--muted)", fontWeight: tc.count > 0 ? "600" : "400" }}>
+                                      {tc.topic}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontWeight: "800",
+                                        color: tc.count > 0 ? "var(--blue)" : "#94a3b8",
+                                        background: tc.count > 0 ? "#e0f2fe" : "transparent",
+                                        padding: "2px 7px",
+                                        borderRadius: "6px",
+                                        fontSize: "10px"
+                                      }}
+                                    >
+                                      {tc.count} orang
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Toggle List of Employees who picked this domain */}
+                          {domain.respondents.length > 0 && (
+                            <div style={{ marginTop: "auto", paddingTop: "8px", borderTop: "1px dashed #e2e8ec" }}>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedSmeDomain(isExpanded ? null : domain.id)}
+                                style={{
+                                  width: "100%",
+                                  background: isExpanded ? "#f1f7fa" : "transparent",
+                                  border: "1px solid #cbd6dc",
+                                  borderRadius: "8px",
+                                  padding: "7px 12px",
+                                  fontSize: "11px",
+                                  fontWeight: "700",
+                                  color: "var(--navy)",
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center"
+                                }}
+                              >
+                                <span>👥 {isExpanded ? "Sembunyikan Daftar Pegawai" : `Lihat Nominasi Pegawai (${domain.respondents.length} ASN)`}</span>
+                                <span>{isExpanded ? "▲" : "▼"}</span>
+                              </button>
+
+                              {isExpanded && (
+                                <div style={{ marginTop: "10px", display: "grid", gap: "8px" }}>
+                                  {domain.respondents.map((resp, pIdx) => (
+                                    <div
+                                      key={pIdx}
+                                      style={{
+                                        padding: "10px 12px",
+                                        background: "#fff",
+                                        border: "1px solid #cbd6dc",
+                                        borderRadius: "8px",
+                                        fontSize: "11px"
+                                      }}
+                                    >
+                                      <div style={{ fontWeight: "700", color: "var(--navy)" }}>{resp.nama}</div>
+                                      <div style={{ color: "var(--muted)", fontSize: "10px" }}>{resp.jabatan} · {resp.unit}</div>
+                                      {resp.subtopics.length > 0 && (
+                                        <div style={{ marginTop: "5px", display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                          {resp.subtopics.map((st, stIdx) => (
+                                            <span
+                                              key={stIdx}
+                                              style={{
+                                                fontSize: "9px",
+                                                padding: "2px 6px",
+                                                borderRadius: "4px",
+                                                background: "#eff6ff",
+                                                color: "#1d4ed8",
+                                                border: "1px solid #bfdbfe"
+                                              }}
+                                            >
+                                              {st}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Comprehensive Subtopic Ranking Table */}
+                <div style={{ marginTop: "32px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+                    <div>
+                      <h3 style={{ fontSize: "15px", color: "var(--navy)", margin: 0 }}>
+                        📋 Rekap Kebutuhan Seluruh Materi / Sub-Topik SME
+                      </h3>
+                      <small style={{ color: "var(--muted)" }}>Daftar sub-topik terurut dari yang paling banyak dibutuhkan pegawai.</small>
+                    </div>
+                    <button className="button secondary" onClick={exportCsv}>
+                      📥 Ekspor Data ke Excel/CSV
+                    </button>
+                  </div>
+
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>No</th>
+                          <th>Materi / Sub-Topik Pelatihan</th>
+                          <th>Rumpun SME</th>
+                          <th>Jumlah Peminat</th>
+                          <th>Persentase</th>
+                          <th>Daftar ASN Pemohon</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {smeAnalytics.allTopics
+                          .filter((tc) => !searchPerson || tc.topic.toLowerCase().includes(searchPerson.toLowerCase()))
+                          .map((tc, idx) => {
+                            const parentDomain = SME_DOMAINS.find((d) => d.topics.includes(tc.topic));
+                            return (
+                              <tr key={idx}>
+                                <td><b>{idx + 1}</b></td>
+                                <td>
+                                  <b style={{ color: "var(--navy)" }}>{tc.topic}</b>
+                                </td>
+                                <td>
+                                  <span className="badge-q" style={{ background: "#f0f7fa", color: "var(--blue)" }}>
+                                    {parentDomain ? `${parentDomain.icon} ${parentDomain.title}` : "—"}
+                                  </span>
+                                </td>
+                                <td>
+                                  <b style={{ fontSize: "13px", color: tc.count > 0 ? "var(--navy)" : "var(--muted)" }}>
+                                    {tc.count} ASN
+                                  </b>
+                                </td>
+                                <td>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <div style={{ width: "60px", height: "6px", background: "#edf2f5", borderRadius: "999px", overflow: "hidden" }}>
+                                      <div style={{ width: `${tc.percentage}%`, height: "100%", background: "var(--teal)" }} />
+                                    </div>
+                                    <span style={{ fontSize: "11px", fontWeight: "700" }}>{tc.percentage}%</span>
+                                  </div>
+                                </td>
+                                <td style={{ fontSize: "11px" }}>
+                                  {tc.respondents.length > 0 ? (
+                                    <span title={tc.respondents.map((r) => r.nama).join(", ")}>
+                                      {tc.respondents.slice(0, 3).map((r) => r.nama).join(", ")}
+                                      {tc.respondents.length > 3 ? ` +${tc.respondents.length - 3} lainnya` : ""}
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: "var(--muted)" }}>—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
             )}
 
             {/* TAB: MASTER PEGAWAI & PROGRESS PARTISIPASI */}
