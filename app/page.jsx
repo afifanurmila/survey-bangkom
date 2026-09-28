@@ -322,7 +322,6 @@ export default function SurveyPage() {
           <div className="hero-meta">
             <span>Estimasi waktu: 10–15 menit</span>
             <span>Skala penilaian 1–5</span>
-            <span>Terhubung Data Master Pegawai ({pegawaiList.length} ASN)</span>
           </div>
         </section>
 
