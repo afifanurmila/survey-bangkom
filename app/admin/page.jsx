@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import bcrypt from "bcryptjs";
 import { DEFAULT_CONFIG } from "../../lib/default-config";
 import { SAMPLE_RESPONSES } from "../../lib/sample-data";
+import masterPegawaiData from "../../lib/master-pegawai-data.json";
 import { getSupabase } from "../../lib/supabase";
 
 export default function AdminPage() {
@@ -16,14 +17,16 @@ export default function AdminPage() {
   const [draft, setDraft] = useState(JSON.stringify(DEFAULT_CONFIG, null, 2));
   const [responses, setResponses] = useState(SAMPLE_RESPONSES);
   const [useSampleData, setUseSampleData] = useState(false);
+  const [pegawaiList, setPegawaiList] = useState(masterPegawaiData);
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Navigation and Filter States
-  const [activeTab, setActiveTab] = useState("diagram"); // 'diagram' | 'orang' | 'rekap' | 'editor'
+  const [activeTab, setActiveTab] = useState("diagram"); // 'diagram' | 'orang' | 'pegawai' | 'rekap' | 'editor'
   const [filterUnit, setFilterUnit] = useState("ALL");
   const [filterJabatan, setFilterJabatan] = useState("ALL");
+  const [filterStatusPartisipasi, setFilterStatusPartisipasi] = useState("ALL"); // 'ALL' | 'SUDAH' | 'BELUM'
   const [selectedPersonId, setSelectedPersonId] = useState("ALL"); // 'ALL' or response id
   const [cutoffMode, setCutoffMode] = useState("dynamic"); // 'dynamic' | 'midpoint'
   const [searchPerson, setSearchPerson] = useState("");
@@ -488,6 +491,62 @@ export default function AdminPage() {
     });
   }, [filteredResponses, searchPerson]);
 
+  // Master Pegawai Participation List & Stats
+  const participationList = useMemo(() => {
+    return pegawaiList
+      .map((pegawai) => {
+        const matchedResponse = responses.find((r) => {
+          const resNip = String(r.response?.nip || "").replace(/\s+/g, "");
+          const pegNip = String(pegawai.nip || "").replace(/\s+/g, "");
+          return (
+            (resNip && pegNip && resNip === pegNip) ||
+            (r.response?.nama && pegawai.nama && r.response.nama.toLowerCase() === pegawai.nama.toLowerCase())
+          );
+        });
+
+        const scores = matchedResponse?.response?.scores || [];
+        const avgGap = scores.length
+          ? scores.reduce((acc, s) => acc + Number(s.gap || 0), 0) / scores.length
+          : null;
+
+        return {
+          ...pegawai,
+          hasSubmitted: Boolean(matchedResponse),
+          submittedAt: matchedResponse?.created_at,
+          responseId: matchedResponse?.id,
+          avgGap: avgGap,
+          responseObj: matchedResponse?.response,
+        };
+      })
+      .filter((p) => {
+        if (filterUnit !== "ALL" && p.unit_organisasi !== filterUnit) return false;
+        if (filterStatusPartisipasi === "SUDAH" && !p.hasSubmitted) return false;
+        if (filterStatusPartisipasi === "BELUM" && p.hasSubmitted) return false;
+        if (searchPerson.trim()) {
+          const q = searchPerson.toLowerCase();
+          return p.nama.toLowerCase().includes(q) || p.nip.includes(q) || (p.unit_organisasi || "").toLowerCase().includes(q);
+        }
+        return true;
+      });
+  }, [pegawaiList, responses, filterUnit, filterStatusPartisipasi, searchPerson]);
+
+  const participationStats = useMemo(() => {
+    const total = pegawaiList.length;
+    const submitted = pegawaiList.filter((pegawai) => {
+      return responses.some((r) => {
+        const resNip = String(r.response?.nip || "").replace(/\s+/g, "");
+        const pegNip = String(pegawai.nip || "").replace(/\s+/g, "");
+        return (
+          (resNip && pegNip && resNip === pegNip) ||
+          (r.response?.nama && pegawai.nama && r.response.nama.toLowerCase() === pegawai.nama.toLowerCase())
+        );
+      });
+    }).length;
+    const pending = total - submitted;
+    const percentage = total ? Math.round((submitted / total) * 100) : 0;
+    return { total, submitted, pending, percentage };
+  }, [pegawaiList, responses]);
+
   // Export to CSV Function
   function exportCsv() {
     const fields = [
@@ -731,7 +790,13 @@ export default function AdminPage() {
                 className={`tab-btn ${activeTab === "orang" ? "active" : ""}`}
                 onClick={() => setActiveTab("orang")}
               >
-                👥 Analisis Gap Per Orang ({filteredResponses.length})
+                👤 Analisis Gap Per Responden ({filteredResponses.length})
+              </button>
+              <button
+                className={`tab-btn ${activeTab === "pegawai" ? "active" : ""}`}
+                onClick={() => setActiveTab("pegawai")}
+              >
+                👥 Master Pegawai & Partisipasi ({participationStats.submitted}/{participationStats.total})
               </button>
               <button
                 className={`tab-btn ${activeTab === "rekap" ? "active" : ""}`}
@@ -1506,6 +1571,145 @@ export default function AdminPage() {
                   )}
                 </section>
               </>
+            )}
+
+            {/* TAB: MASTER PEGAWAI & PROGRESS PARTISIPASI */}
+            {activeTab === "pegawai" && (
+              <section className="card">
+                <div className="section-heading">
+                  <span>DATA MASTER KEPEGAWAIAN</span>
+                  <h2>Progress Partisipasi Survei (58 ASN Deputi I LAN RI)</h2>
+                  <p>
+                    Pantau status pengisian survei setiap pegawai di lingkungan Deputi I LAN RI secara real-time.
+                  </p>
+                </div>
+
+                {/* Participation Stats Summary */}
+                <div className="stats-grid" style={{ marginTop: "16px" }}>
+                  <article className="stat-card">
+                    <span>Total Pegawai Terdaftar</span>
+                    <b>{participationStats.total} ASN</b>
+                  </article>
+                  <article className="stat-card" style={{ borderLeft: "4px solid #16a34a" }}>
+                    <span>Sudah Mengisi Survei</span>
+                    <b style={{ color: "#16a34a" }}>{participationStats.submitted} Pegawai</b>
+                  </article>
+                  <article className="stat-card" style={{ borderLeft: "4px solid #d97706" }}>
+                    <span>Belum Mengisi Survei</span>
+                    <b style={{ color: "#d97706" }}>{participationStats.pending} Pegawai</b>
+                  </article>
+                </div>
+
+                {/* Filter & Search Bar */}
+                <div className="filter-card">
+                  <div className="filter-item">
+                    <label>Cari Nama / NIP</label>
+                    <input
+                      type="text"
+                      placeholder="Ketik nama atau NIP..."
+                      value={searchPerson}
+                      onChange={(e) => setSearchPerson(e.target.value)}
+                    />
+                  </div>
+                  <div className="filter-item">
+                    <label>Filter Unit Kerja</label>
+                    <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)}>
+                      <option value="ALL">Semua Unit Kerja ({pegawaiList.length})</option>
+                      {availableUnits.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="filter-item">
+                    <label>Filter Status Survei</label>
+                    <select
+                      value={filterStatusPartisipasi}
+                      onChange={(e) => setFilterStatusPartisipasi(e.target.value)}
+                    >
+                      <option value="ALL">Semua Status ({participationStats.total})</option>
+                      <option value="SUDAH">✓ Sudah Mengisi ({participationStats.submitted})</option>
+                      <option value="BELUM">⏳ Belum Mengisi ({participationStats.pending})</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Table of 58 Employees */}
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>No</th>
+                        <th>Nama & NIP</th>
+                        <th>Unit Organisasi</th>
+                        <th>Jabatan & Jenjang</th>
+                        <th>Pangkat / Gol.</th>
+                        <th>Status Survei</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {participationList.map((p) => (
+                        <tr key={p.no_urut}>
+                          <td><b>{p.no_urut}</b></td>
+                          <td>
+                            <b>{p.nama}</b>
+                            <br />
+                            <small style={{ color: "var(--muted)" }}>NIP: {p.nip}</small>
+                          </td>
+                          <td style={{ fontSize: "11px" }}>{p.unit_organisasi}</td>
+                          <td>
+                            <b>{p.jabatan}</b>
+                            <br />
+                            <small style={{ color: "var(--muted)" }}>{p.jenjang_jabatan || p.jenis_jabatan}</small>
+                          </td>
+                          <td>
+                            <small>{p.pangkat_golongan_ruang || p.golongan || "—"}</small>
+                          </td>
+                          <td>
+                            {p.hasSubmitted ? (
+                              <div>
+                                <span
+                                  className="badge-q badge-q2"
+                                  style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                                >
+                                  ✓ Sudah Mengisi
+                                </span>
+                                {p.responseId && (
+                                  <button
+                                    className="button secondary"
+                                    style={{ display: "block", marginTop: "4px", padding: "3px 8px", fontSize: "10px" }}
+                                    onClick={() => {
+                                      setSelectedPersonId(p.responseId);
+                                      setActiveTab("diagram");
+                                    }}
+                                  >
+                                    🎯 Plot ke Cartesius
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <span
+                                className="badge-q badge-q3"
+                                style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                              >
+                                ⏳ Belum Mengisi
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {!participationList.length && (
+                        <tr>
+                          <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
+                            Tidak ada data pegawai yang sesuai filter.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             )}
 
             {/* TAB 3: REKAP DATA & CSV EXPORT */}
