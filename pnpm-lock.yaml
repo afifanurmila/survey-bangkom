@@ -11,6 +11,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.57.0
         version: 2.116.0
+      bcryptjs:
+        specifier: ^3.0.3
+        version: 3.0.3
       next:
         specifier: ^16.3.6
         version: 16.3.6(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -283,6 +286,10 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
+  bcryptjs@3.0.3:
+    resolution: {integrity: sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g==}
+    hasBin: true
+
   caniuse-lite@1.0.30001810:
     resolution: {integrity: sha512-TITQPUkaz+aVk5GL6NhOdwk1aEaNTSDPsGFWrTuhKGtjTF70jL/Oht2W4c6rXUe5fu7Ie19VIahAXHIIiWWNeg==}
 
@@ -553,6 +560,8 @@ snapshots:
       tslib: 2.8.1
 
   baseline-browser-mapping@2.11.25: {}
+
+  bcryptjs@3.0.3: {}
 
   caniuse-lite@1.0.30001810: {}
 

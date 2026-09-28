@@ -23,3 +23,58 @@
 .choice-grid .answer-choice:hover{border-color:#98b4bf;background:#f8fbfc}
 .choice-grid .answer-choice input{position:static!important;inset:auto!important;width:16px;height:16px;margin:0!important;accent-color:var(--blue)}
 .choice-grid .answer-choice>span{display:block;min-width:0;width:100%;text-align:left;white-space:normal;overflow-wrap:break-word;word-break:normal}
+
+/* Admin Cartesian & Analytics Styles */
+.tab-bar{display:flex;gap:6px;border-bottom:2px solid #e2e8ec;margin-bottom:20px;overflow-x:auto;padding-bottom:2px}
+.tab-btn{background:none;border:none;padding:10px 18px;font-size:13px;font-weight:700;color:var(--muted);border-radius:8px 8px 0 0;position:relative;cursor:pointer;white-space:nowrap;transition:color .2s,background .2s}
+.tab-btn:hover{color:var(--navy);background:#f0f4f7}
+.tab-btn.active{color:var(--navy);background:#fff;border:1px solid #e2e8ec;border-bottom:2px solid #fff;margin-bottom:-2px;box-shadow:0 -2px 6px #00000008}
+
+.filter-card{background:#f8fafb;border:1px solid #e0e8ed;border-radius:12px;padding:16px;margin-bottom:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;align-items:flex-end}
+.filter-item{display:grid;gap:6px;font-size:11px;font-weight:700;color:var(--ink)}
+.filter-item select,.filter-item input{padding:8px 10px;font-size:12px;border:1px solid #cbd6dc;border-radius:7px;background:#fff}
+
+.quadrant-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+@media(max-width:900px){.quadrant-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:500px){.quadrant-grid{grid-template-columns:1fr}}
+
+.quadrant-card{padding:14px;border-radius:12px;border:1px solid #e5e9ec;background:#fff;position:relative;overflow:hidden}
+.quadrant-card.q1{border-left:5px solid #dc2626;background:linear-gradient(135deg,#fff,#fef2f2)}
+.quadrant-card.q2{border-left:5px solid #16a34a;background:linear-gradient(135deg,#fff,#f0fdf4)}
+.quadrant-card.q3{border-left:5px solid #d97706;background:linear-gradient(135deg,#fff,#fffbeb)}
+.quadrant-card.q4{border-left:5px solid #2563eb;background:linear-gradient(135deg,#fff,#eff6ff)}
+.quadrant-card h4{margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.quadrant-card.q1 h4{color:#b91c1c}
+.quadrant-card.q2 h4{color:#15803d}
+.quadrant-card.q3 h4{color:#b45309}
+.quadrant-card.q4 h4{color:#1d4ed8}
+.quadrant-card .q-title{font-size:13px;font-weight:800;color:var(--ink);margin-bottom:4px}
+.quadrant-card .q-count{font-size:22px;font-weight:800;margin:6px 0}
+.quadrant-card .q-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.quadrant-pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;background:#fff;border:1px solid #d1d5db;color:var(--ink)}
+
+.cartesian-container{background:#fff;border:1px solid #e5e9ec;border-radius:14px;padding:20px;margin-bottom:20px;position:relative}
+.cartesian-svg-wrap{width:100%;max-width:800px;margin:0 auto;position:relative}
+.cartesian-svg{width:100%;height:auto;display:block;overflow:visible}
+
+.badge-q{display:inline-block;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700}
+.badge-q1{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.badge-q2{background:#dcfce7;color:#166534;border:1px solid #86efac}
+.badge-q3{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+.badge-q4{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe}
+
+.gap-tag{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}
+.gap-pos-high{background:#fee2e2;color:#b91c1c}
+.gap-pos-med{background:#fff7ed;color:#c2410c}
+.gap-zero{background:#f3f4f6;color:#4b5563}
+.gap-neg{background:#dcfce7;color:#15803d}
+
+.person-card{border:1px solid #e5e9ec;border-radius:12px;padding:16px;margin-bottom:12px;background:#fff;transition:border-color .15s,box-shadow .15s}
+.person-card:hover{border-color:var(--teal);box-shadow:0 4px 14px #08839512}
+.person-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;cursor:pointer}
+.person-info h3{margin:0 0 3px;font-size:15px;color:var(--navy)}
+.person-info p{margin:0;font-size:11px;color:var(--muted)}
+.person-stats{display:flex;gap:12px;align-items:center}
+.person-badge{background:#e8f4f8;color:var(--blue);padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700}
+.person-expanded{margin-top:14px;padding-top:14px;border-top:1px dashed #e2e8ec}
+
