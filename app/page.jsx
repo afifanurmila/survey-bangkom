@@ -17,6 +17,11 @@ const preferredTimeOptions = [
   "Siang/sore (13.30–15.30 WIB)",
   "Fleksibel / tidak ada preferensi",
 ];
+const sharingReadinessOptions = [
+  "Ya, bersedia berkontribusi",
+  "Mungkin, setelah mengetahui topik dan jadwal kegiatan",
+  "Untuk saat ini, ingin berfokus sebagai peserta",
+];
 
 function formatMasaKerja(p) {
   if (p.masa_kerja_organisasi !== null && p.masa_kerja_organisasi !== undefined) {
@@ -111,6 +116,8 @@ export default function SurveyPage() {
   const [formatOther, setFormatOther] = useState("");
   const [preferredDays, setPreferredDays] = useState([]);
   const [preferredTime, setPreferredTime] = useState("");
+  const [sharingReadiness, setSharingReadiness] = useState("");
+  const [sharingExpertise, setSharingExpertise] = useState("");
   const [topics, setTopics] = useState([]);
   const [topicOther, setTopicOther] = useState("");
   const [method, setMethod] = useState("");
@@ -127,8 +134,9 @@ export default function SurveyPage() {
   const groupCount = competencyGroups.length;
   const identificationStep = groupCount + 2;
   const scheduleStep = groupCount + 3;
-  const suggestionStep = groupCount + 4;
-  const totalSteps = groupCount + 4;
+  const readinessStep = groupCount + 4;
+  const suggestionStep = groupCount + 5;
+  const totalSteps = groupCount + 5;
 
   useEffect(() => {
     try {
@@ -145,6 +153,8 @@ export default function SurveyPage() {
             String(draft.formatOther || "").trim() ||
             (draft.preferredDays || []).length > 0 ||
             String(draft.preferredTime || "").trim() ||
+            String(draft.sharingReadiness || "").trim() ||
+            String(draft.sharingExpertise || "").trim() ||
             (draft.topics || []).length > 0 ||
             String(draft.topicOther || "").trim() ||
             String(draft.method || "").trim() ||
@@ -158,15 +168,18 @@ export default function SurveyPage() {
           if (typeof draft.formatOther === "string") setFormatOther(draft.formatOther);
           if (Array.isArray(draft.preferredDays)) setPreferredDays(draft.preferredDays);
           if (typeof draft.preferredTime === "string") setPreferredTime(draft.preferredTime);
+          if (typeof draft.sharingReadiness === "string") setSharingReadiness(draft.sharingReadiness);
+          if (typeof draft.sharingExpertise === "string") setSharingExpertise(draft.sharingExpertise);
           if (Array.isArray(draft.topics)) setTopics(draft.topics);
           if (typeof draft.topicOther === "string") setTopicOther(draft.topicOther);
           if (typeof draft.method === "string") setMethod(draft.method);
           if (typeof draft.methodOther === "string") setMethodOther(draft.methodOther);
           if (typeof draft.suggestion === "string") setSuggestion(draft.suggestion);
           if (Number.isInteger(draft.step) && draft.step >= 1) {
-            const restoredStep = draft.step === scheduleStep && !Array.isArray(draft.preferredDays)
-              ? suggestionStep
-              : draft.step;
+            const wasOnLegacySuggestion =
+              (!Array.isArray(draft.preferredDays) && draft.step === scheduleStep) ||
+              (Array.isArray(draft.preferredDays) && draft.step === readinessStep && typeof draft.sharingReadiness !== "string");
+            const restoredStep = wasOnLegacySuggestion ? suggestionStep : draft.step;
             setStep(Math.min(restoredStep, totalSteps));
           }
           if (hasProgress) setNotice("Progres jawaban sebelumnya dipulihkan dari browser ini.");
@@ -179,7 +192,7 @@ export default function SurveyPage() {
     } finally {
       setDraftReady(true);
     }
-  }, [totalSteps, scheduleStep, suggestionStep]);
+  }, [totalSteps, scheduleStep, readinessStep, suggestionStep]);
 
   useEffect(() => {
     if (!draftReady || done) return;
@@ -197,6 +210,8 @@ export default function SurveyPage() {
         formatOther,
         preferredDays,
         preferredTime,
+        sharingReadiness,
+        sharingExpertise,
         topics,
         topicOther,
         method,
@@ -206,7 +221,7 @@ export default function SurveyPage() {
     } catch {
       setNotice("Progres tidak dapat disimpan di browser ini. Periksa ruang penyimpanan perangkat.");
     }
-  }, [draftReady, done, config.instrumentVersion, step, profile, scores, smeDomains, smeSubtopics, formats, formatOther, preferredDays, preferredTime, topics, topicOther, method, methodOther, suggestion]);
+  }, [draftReady, done, config.instrumentVersion, step, profile, scores, smeDomains, smeSubtopics, formats, formatOther, preferredDays, preferredTime, sharingReadiness, sharingExpertise, topics, topicOther, method, methodOther, suggestion]);
 
   useEffect(() => {
     let alive = true;
@@ -344,6 +359,9 @@ export default function SurveyPage() {
       if (!preferredDays.length) errors.preferredDays = "Pilih hari atau pilih tidak ada preferensi.";
       if (!preferredTime) errors.preferredTime = "Pilih waktu pelaksanaan.";
     }
+    if (step === readinessStep && !sharingReadiness) {
+      errors.sharingReadiness = "Pilih salah satu jawaban.";
+    }
     setValidationErrors(errors);
     if (Object.keys(errors).length) {
       setNotice("Periksa isian yang ditandai. Bagian tersebut wajib dilengkapi.");
@@ -397,6 +415,8 @@ export default function SurveyPage() {
       metode_pembelajaran: method === "Lainnya" ? methodOther.trim() || "Lainnya" : method,
       preferensi_hari: preferredDays,
       preferensi_waktu: preferredTime,
+      kesiapan_berbagi_pengetahuan: sharingReadiness,
+      bidang_keahlian_dibagikan: sharingExpertise.trim(),
       kompetensi_lain: suggestion,
     };
 
@@ -789,7 +809,7 @@ export default function SurveyPage() {
                   {formats.includes("Lainnya") && (
                     <Field
                       id="formatOther"
-                      label="Bentuk pengembangan lainnya *"
+                      label="Bentuk kegiatan SME lainnya, sebutkan *"
                       error={validationErrors.formatOther}
                     >
                       <input
@@ -799,7 +819,7 @@ export default function SurveyPage() {
                           setFormatOther(e.target.value);
                           setValidationErrors((prev) => ({ ...prev, formatOther: "" }));
                         }}
-                        placeholder="Tuliskan bentuk yang dibutuhkan"
+                        placeholder="Tuliskan kegiatan SME yang Anda usulkan"
                       />
                     </Field>
                   )}
@@ -819,7 +839,7 @@ export default function SurveyPage() {
                   {method === "Lainnya" && (
                     <Field
                       id="methodOther"
-                      label="Metode pembelajaran lainnya *"
+                      label="Metode pembelajaran lainnya, sebutkan *"
                       error={validationErrors.methodOther}
                     >
                       <input
@@ -829,7 +849,7 @@ export default function SurveyPage() {
                           setMethodOther(e.target.value);
                           setValidationErrors((prev) => ({ ...prev, methodOther: "" }));
                         }}
-                        placeholder="Tuliskan metode yang sesuai"
+                        placeholder="Tuliskan metode pembelajaran yang Anda usulkan"
                       />
                     </Field>
                   )}
@@ -882,6 +902,47 @@ export default function SurveyPage() {
                       }}
                     />
                   </Field>
+                  <Nav back={back} next={next} />
+                </section>
+              )}
+
+              {/* STEP KESEDIAAN BERBAGI PENGETAHUAN */}
+              {step === readinessStep && (
+                <section className="card form-section">
+                  <SectionHeading
+                    n={String(readinessStep)}
+                    title="Kesediaan Berbagi Pengetahuan Internal"
+                    desc="Bagian ini membantu memetakan pegawai yang berminat berbagi pengetahuan sebagai SME internal."
+                  />
+                  <Field
+                    label="1. Apakah Anda bersedia berkontribusi dalam kegiatan berbagi pengetahuan internal Deputi I? *"
+                    error={validationErrors.sharingReadiness}
+                  >
+                    <RadioList
+                      name="sharingReadiness"
+                      options={sharingReadinessOptions}
+                      value={sharingReadiness}
+                      onChange={(value) => {
+                        setSharingReadiness(value);
+                        if (value === sharingReadinessOptions[2]) setSharingExpertise("");
+                        setValidationErrors((prev) => ({ ...prev, sharingReadiness: "" }));
+                      }}
+                    />
+                  </Field>
+                  {sharingReadiness && sharingReadiness !== sharingReadinessOptions[2] && (
+                    <Field
+                      id="sharingExpertise"
+                      label="2. Bidang keahlian atau pengalaman yang dapat Anda bagikan (opsional)"
+                      helper="Boleh dikosongkan jika belum menentukan bidang yang ingin dibagikan."
+                    >
+                      <input
+                        id="sharingExpertise"
+                        value={sharingExpertise}
+                        onChange={(event) => setSharingExpertise(event.target.value)}
+                        placeholder="Contoh: metodologi survei kebijakan, visualisasi data"
+                      />
+                    </Field>
+                  )}
                   <Nav back={back} next={next} />
                 </section>
               )}

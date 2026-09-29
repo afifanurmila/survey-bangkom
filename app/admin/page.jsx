@@ -717,6 +717,8 @@ export default function AdminPage() {
       "metode_pembelajaran",
       "preferensi_hari",
       "preferensi_waktu",
+      "kesiapan_berbagi_pengetahuan",
+      "bidang_keahlian_dibagikan",
       "kompetensi_lain",
       "scores_json_raw",
       ...config.competencies.flatMap((c) => [
@@ -750,6 +752,8 @@ export default function AdminPage() {
         r.metode_pembelajaran || "",
         r.preferensi_hari || [],
         r.preferensi_waktu || "",
+        r.kesiapan_berbagi_pengetahuan || "",
+        r.bidang_keahlian_dibagikan || "",
         r.kompetensi_lain || "",
         JSON.stringify(r.scores || []),
       ];
