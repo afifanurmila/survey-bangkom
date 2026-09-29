@@ -11,6 +11,12 @@ const scale = ["Sangat tidak mampu", "Tidak mampu", "Cukup mampu", "Mampu", "San
 const needScale = ["Sangat tidak membutuhkan", "Tidak membutuhkan", "Cukup membutuhkan", "Membutuhkan", "Sangat membutuhkan"];
 const DRAFT_STORAGE_KEY = "survey-bangkom-draft";
 const DRAFT_SCHEMA_VERSION = 1;
+const preferredDayOptions = ["Senin", "Selasa", "Rabu", "Kamis", "Tidak ada preferensi"];
+const preferredTimeOptions = [
+  "Pagi (09.00–11.30 WIB)",
+  "Siang/sore (13.30–15.30 WIB)",
+  "Fleksibel / tidak ada preferensi",
+];
 
 function formatMasaKerja(p) {
   if (p.masa_kerja_organisasi !== null && p.masa_kerja_organisasi !== undefined) {
@@ -66,12 +72,19 @@ function Select({ id, options, value, onChange, placeholder, disabled = false })
 function Checks({ name, options, value, onChange }) {
   return (
     <div className="choice-grid" role="group" aria-label={name}>
-      {options.map((x) => (
-        <label className="answer-choice" key={x}>
-          <input type="checkbox" name={name} checked={value.includes(x)} onChange={() => onChange(x)} />
-          <span>{x}</span>
-        </label>
-      ))}
+      {options.map((option) => {
+        const optionValue = typeof option === "string" ? option : option.value;
+        const label = typeof option === "string" ? option : option.label;
+        const description = typeof option === "string" ? "" : option.description;
+        return (
+          <label className="answer-choice" key={optionValue}>
+            <input type="checkbox" name={name} checked={value.includes(optionValue)} onChange={() => onChange(optionValue)} />
+            <span className={description ? "answer-choice-copy" : undefined}>
+              {description ? <><strong>{label}</strong><small>{description}</small></> : label}
+            </span>
+          </label>
+        );
+      })}
     </div>
   );
 }
@@ -96,6 +109,8 @@ export default function SurveyPage() {
   const [smeSubtopics, setSmeSubtopics] = useState([]);
   const [formats, setFormats] = useState([]);
   const [formatOther, setFormatOther] = useState("");
+  const [preferredDays, setPreferredDays] = useState([]);
+  const [preferredTime, setPreferredTime] = useState("");
   const [topics, setTopics] = useState([]);
   const [topicOther, setTopicOther] = useState("");
   const [method, setMethod] = useState("");
@@ -111,8 +126,9 @@ export default function SurveyPage() {
   const competencyGroups = useMemo(() => [...new Set(config.competencies.map((c) => c.pilar))], [config.competencies]);
   const groupCount = competencyGroups.length;
   const identificationStep = groupCount + 2;
-  const suggestionStep = groupCount + 3;
-  const totalSteps = groupCount + 3;
+  const scheduleStep = groupCount + 3;
+  const suggestionStep = groupCount + 4;
+  const totalSteps = groupCount + 4;
 
   useEffect(() => {
     try {
@@ -127,6 +143,8 @@ export default function SurveyPage() {
             (draft.smeSubtopics || []).length > 0 ||
             (draft.formats || []).length > 0 ||
             String(draft.formatOther || "").trim() ||
+            (draft.preferredDays || []).length > 0 ||
+            String(draft.preferredTime || "").trim() ||
             (draft.topics || []).length > 0 ||
             String(draft.topicOther || "").trim() ||
             String(draft.method || "").trim() ||
@@ -138,12 +156,19 @@ export default function SurveyPage() {
           if (Array.isArray(draft.smeSubtopics)) setSmeSubtopics(draft.smeSubtopics);
           if (Array.isArray(draft.formats)) setFormats(draft.formats);
           if (typeof draft.formatOther === "string") setFormatOther(draft.formatOther);
+          if (Array.isArray(draft.preferredDays)) setPreferredDays(draft.preferredDays);
+          if (typeof draft.preferredTime === "string") setPreferredTime(draft.preferredTime);
           if (Array.isArray(draft.topics)) setTopics(draft.topics);
           if (typeof draft.topicOther === "string") setTopicOther(draft.topicOther);
           if (typeof draft.method === "string") setMethod(draft.method);
           if (typeof draft.methodOther === "string") setMethodOther(draft.methodOther);
           if (typeof draft.suggestion === "string") setSuggestion(draft.suggestion);
-          if (Number.isInteger(draft.step) && draft.step >= 1) setStep(Math.min(draft.step, totalSteps));
+          if (Number.isInteger(draft.step) && draft.step >= 1) {
+            const restoredStep = draft.step === scheduleStep && !Array.isArray(draft.preferredDays)
+              ? suggestionStep
+              : draft.step;
+            setStep(Math.min(restoredStep, totalSteps));
+          }
           if (hasProgress) setNotice("Progres jawaban sebelumnya dipulihkan dari browser ini.");
         } else {
           window.localStorage.removeItem(DRAFT_STORAGE_KEY);
@@ -154,7 +179,7 @@ export default function SurveyPage() {
     } finally {
       setDraftReady(true);
     }
-  }, [totalSteps]);
+  }, [totalSteps, scheduleStep, suggestionStep]);
 
   useEffect(() => {
     if (!draftReady || done) return;
@@ -170,6 +195,8 @@ export default function SurveyPage() {
         smeSubtopics,
         formats,
         formatOther,
+        preferredDays,
+        preferredTime,
         topics,
         topicOther,
         method,
@@ -179,7 +206,7 @@ export default function SurveyPage() {
     } catch {
       setNotice("Progres tidak dapat disimpan di browser ini. Periksa ruang penyimpanan perangkat.");
     }
-  }, [draftReady, done, config.instrumentVersion, step, profile, scores, smeDomains, smeSubtopics, formats, formatOther, topics, topicOther, method, methodOther, suggestion]);
+  }, [draftReady, done, config.instrumentVersion, step, profile, scores, smeDomains, smeSubtopics, formats, formatOther, preferredDays, preferredTime, topics, topicOther, method, methodOther, suggestion]);
 
   useEffect(() => {
     let alive = true;
@@ -313,6 +340,10 @@ export default function SurveyPage() {
       if (!method) errors.method = "Metode pembelajaran wajib dipilih.";
       if (method === "Lainnya" && !methodOther.trim()) errors.methodOther = "Tuliskan metode pembelajaran lainnya.";
     }
+    if (step === scheduleStep) {
+      if (!preferredDays.length) errors.preferredDays = "Pilih hari atau pilih tidak ada preferensi.";
+      if (!preferredTime) errors.preferredTime = "Pilih waktu pelaksanaan.";
+    }
     setValidationErrors(errors);
     if (Object.keys(errors).length) {
       setNotice("Periksa isian yang ditandai. Bagian tersebut wajib dilengkapi.");
@@ -364,6 +395,8 @@ export default function SurveyPage() {
         ...(topics.includes("Lainnya") && topicOther.trim() ? [topicOther.trim()] : []),
       ],
       metode_pembelajaran: method === "Lainnya" ? methodOther.trim() || "Lainnya" : method,
+      preferensi_hari: preferredDays,
+      preferensi_waktu: preferredTime,
       kompetensi_lain: suggestion,
     };
 
@@ -739,8 +772,9 @@ export default function SurveyPage() {
 
                   {/* 3. BENTUK PENGEMBANGAN */}
                   <Field
-                    label="3. Bentuk Pengembangan Kompetensi yang Paling Dibutuhkan (Pilih Maksimal 3) *"
+                    label="3. Bentuk Kegiatan SME yang Paling Efektif bagi Anda (Pilih maksimal 3) *"
                     error={validationErrors.formats}
+                    helper="Pilih hingga tiga kegiatan yang paling membantu Anda mengembangkan kompetensi untuk mendukung peran SME."
                   >
                     <Checks
                       name="formats"
@@ -800,6 +834,54 @@ export default function SurveyPage() {
                     </Field>
                   )}
 
+                  <Nav back={back} next={next} />
+                </section>
+              )}
+
+              {/* STEP PREFERENSI JADWAL */}
+              {step === scheduleStep && (
+                <section className="card form-section">
+                  <SectionHeading
+                    n={String(scheduleStep)}
+                    title="Preferensi Hari & Waktu Pelaksanaan"
+                    desc="Bantu kami menyesuaikan jadwal kegiatan agar tidak mengganggu ritme kerja harian."
+                  />
+                  <Field
+                    label="1. Pilihan Hari Pelaksanaan (Pilih maksimal 2) *"
+                    error={validationErrors.preferredDays}
+                    helper="Pilih satu atau dua hari kerja. Pilih ‘Tidak ada preferensi’ jika jadwal Anda fleksibel."
+                  >
+                    <Checks
+                      name="preferredDays"
+                      options={preferredDayOptions}
+                      value={preferredDays}
+                      onChange={(day) => {
+                        setPreferredDays((current) => {
+                          if (day === "Tidak ada preferensi") {
+                            return current.includes(day) ? [] : [day];
+                          }
+                          const selectedDays = current.filter((value) => value !== "Tidak ada preferensi");
+                          if (selectedDays.includes(day)) return selectedDays.filter((value) => value !== day);
+                          return selectedDays.length < 2 ? [...selectedDays, day] : selectedDays;
+                        });
+                        setValidationErrors((prev) => ({ ...prev, preferredDays: "" }));
+                      }}
+                    />
+                  </Field>
+                  <Field
+                    label="2. Preferensi Waktu / Jam Pelaksanaan *"
+                    error={validationErrors.preferredTime}
+                  >
+                    <RadioList
+                      name="preferredTime"
+                      options={preferredTimeOptions}
+                      value={preferredTime}
+                      onChange={(value) => {
+                        setPreferredTime(value);
+                        setValidationErrors((prev) => ({ ...prev, preferredTime: "" }));
+                      }}
+                    />
+                  </Field>
                   <Nav back={back} next={next} />
                 </section>
               )}

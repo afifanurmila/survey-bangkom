@@ -1,2 +1,2 @@
-:HL["/survey-bangkom/_next/static/chunks/36cxm4fltz28b.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"UwxotifkCTyFXmc-7w07k"}
+:HL["/survey-bangkom/_next/static/chunks/11gznzd7p44yz.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"q0hurMiuWuUEQ__2800v4"}

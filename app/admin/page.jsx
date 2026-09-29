@@ -212,11 +212,13 @@ export default function AdminPage() {
         );
       if (
         next.competencies.some((x) => !x.id || !x.title || !x.pilar) ||
-        next.developmentFormats.some((x) => typeof x !== "string") ||
+        next.developmentFormats.some((x) =>
+          typeof x !== "string" && (!x || typeof x.value !== "string" || typeof x.label !== "string")
+        ) ||
         next.priorityTopics.some((x) => typeof x !== "string") ||
         next.learningMethods.some((x) => typeof x !== "string")
       )
-        throw new Error("Kompetensi perlu memiliki id, title, dan pilar. Pilihan pengembangan ditulis sebagai teks.");
+        throw new Error("Kompetensi perlu memiliki id, title, dan pilar. Pilihan kegiatan SME perlu memiliki value dan label.");
 
       const confirmationPassword = window.prompt("Masukkan ulang kata sandi admin untuk menyimpan perubahan kuesioner:");
       if (confirmationPassword === null) return;
@@ -713,6 +715,8 @@ export default function AdminPage() {
       "bentuk_pengembangan",
       "topik_prioritas",
       "metode_pembelajaran",
+      "preferensi_hari",
+      "preferensi_waktu",
       "kompetensi_lain",
       "scores_json_raw",
       ...config.competencies.flatMap((c) => [
@@ -744,6 +748,8 @@ export default function AdminPage() {
         r.bentuk_pengembangan || [],
         r.topik_prioritas || [],
         r.metode_pembelajaran || "",
+        r.preferensi_hari || [],
+        r.preferensi_waktu || "",
         r.kompetensi_lain || "",
         JSON.stringify(r.scores || []),
       ];
