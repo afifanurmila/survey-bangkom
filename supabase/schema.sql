@@ -46,8 +46,6 @@ create policy "Anyone can read active survey config" on public.survey_config
   for select to anon, authenticated using (true);
 
 drop policy if exists "Admins manage survey config" on public.survey_config;
-create policy "Admins manage survey config" on public.survey_config
-  for all to anon, authenticated using (true) with check (true);
 
 -- Policies for survey_responses
 drop policy if exists "Respondents can submit surveys" on public.survey_responses;
@@ -60,7 +58,7 @@ create policy "Admins can read survey responses" on public.survey_responses
 
 -- Grants
 grant select on public.users to anon, authenticated;
-grant select, insert, update on public.survey_config to anon, authenticated;
+grant select on public.survey_config to anon, authenticated;
 grant select, insert on public.survey_responses to anon, authenticated;
 grant usage, select on sequence public.survey_responses_id_seq to anon, authenticated;
 grant usage, select on sequence public.users_id_seq to anon, authenticated;
@@ -93,6 +91,42 @@ end;
 $$;
 revoke all on function public.delete_selected_survey_responses(bigint[], text, text) from public;
 grant execute on function public.delete_selected_survey_responses(bigint[], text, text) to anon, authenticated;
+
+-- Save config through a password-verified function rather than public table writes.
+create or replace function public.save_survey_config(
+  p_config jsonb,
+  p_username text,
+  p_password text
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  saved_config jsonb;
+begin
+  if p_config is null then
+    raise exception 'Konfigurasi kuesioner tidak boleh kosong.';
+  end if;
+  if not exists (
+    select 1 from public.users u
+    where u.username = p_username
+      and u.password_hash = crypt(p_password, u.password_hash)
+  ) then
+    raise exception 'Username atau kata sandi administrator salah.';
+  end if;
+  update public.survey_config
+  set config = p_config, updated_at = now()
+  where id = 'main'
+  returning config into saved_config;
+  if saved_config is null then
+    raise exception 'Baris konfigurasi main tidak ditemukan di survey_config.';
+  end if;
+  return saved_config;
+end;
+$$;
+revoke all on function public.save_survey_config(jsonb, text, text) from public;
+grant execute on function public.save_survey_config(jsonb, text, text) to anon, authenticated;
 
 -- Default starter config
 insert into public.survey_config (id, config) values ('main', '{"version":1}')

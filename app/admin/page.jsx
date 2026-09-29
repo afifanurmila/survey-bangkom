@@ -194,6 +194,7 @@ export default function AdminPage() {
 
   async function saveConfig() {
     try {
+      if (!db) throw new Error("Koneksi Supabase belum tersedia di aplikasi ini.");
       const next = JSON.parse(draft);
       if (
         next.instrumentVersion !== DEFAULT_CONFIG.instrumentVersion ||
@@ -217,10 +218,14 @@ export default function AdminPage() {
       )
         throw new Error("Kompetensi perlu memiliki id, title, dan pilar. Pilihan pengembangan ditulis sebagai teks.");
 
-      const { error: issue } = await db
-        .from("survey_config")
-        .update({ config: next, updated_at: new Date().toISOString() })
-        .eq("id", "main");
+      const confirmationPassword = window.prompt("Masukkan ulang kata sandi admin untuk menyimpan perubahan kuesioner:");
+      if (confirmationPassword === null) return;
+
+      const { error: issue } = await db.rpc("save_survey_config", {
+        p_config: next,
+        p_username: adminUser?.username || "",
+        p_password: confirmationPassword,
+      });
       if (issue) throw issue;
 
       const { data: savedRow, error: readbackIssue } = await db
