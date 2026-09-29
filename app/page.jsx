@@ -199,8 +199,6 @@ export default function SurveyPage() {
           const savedConfig = normalizeSurveyConfig(data.config);
           if (savedConfig) {
             setConfig(savedConfig);
-          } else {
-            setNotice("Konfigurasi tersimpan tidak lengkap atau versinya tidak cocok. Halaman menampilkan konfigurasi bawaan.");
           }
         });
 
