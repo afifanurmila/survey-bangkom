@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import bcrypt from "bcryptjs";
-import { DEFAULT_CONFIG } from "../../lib/default-config";
+import { DEFAULT_CONFIG, normalizeSurveyConfig } from "../../lib/default-config";
 import { SME_DOMAINS } from "../../lib/sme-topics-data";
 import { SAMPLE_RESPONSES } from "../../lib/sample-data";
 import masterPegawaiData from "../../lib/master-pegawai-data.json";
@@ -38,6 +38,14 @@ export default function AdminPage() {
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [selectedCompetencyId, setSelectedCompetencyId] = useState(null);
 
+  function stableStringify(value) {
+    if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+    if (value && typeof value === "object") {
+      return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+    }
+    return JSON.stringify(value);
+  }
+
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem("admin_session");
@@ -71,14 +79,17 @@ export default function AdminPage() {
       setBusy(false);
 
       if (configResult.data?.config) {
-        const next =
-          configResult.data.config.instrumentVersion === DEFAULT_CONFIG.instrumentVersion &&
-          configResult.data.config.developmentFormats?.length &&
-          configResult.data.config.competencies?.length
-            ? { ...DEFAULT_CONFIG, ...configResult.data.config }
-            : DEFAULT_CONFIG;
-        setConfig(next);
-        setDraft(JSON.stringify(next, null, 2));
+        const next = normalizeSurveyConfig(configResult.data.config);
+        if (!next) {
+          setConfig(DEFAULT_CONFIG);
+          setDraft(JSON.stringify(DEFAULT_CONFIG, null, 2));
+          notify("Konfigurasi di Supabase tidak lengkap/berbeda versi; editor memakai versi bawaan.", true);
+        } else {
+          setConfig(next);
+          setDraft(JSON.stringify(next, null, 2));
+        }
+      } else if (configResult.error) {
+        notify(`Konfigurasi belum bisa dibaca dari Supabase: ${configResult.error.message}`, true);
       }
 
       const rows = responseResult.data || [];
@@ -210,8 +221,21 @@ export default function AdminPage() {
         .from("survey_config")
         .upsert({ id: "main", config: next, updated_at: new Date().toISOString(), updated_by: adminUser?.username || "admin" });
       if (issue) throw issue;
+
+      const { data: savedRow, error: readbackIssue } = await db
+        .from("survey_config")
+        .select("config")
+        .eq("id", "main")
+        .single();
+      if (readbackIssue) throw new Error(`Perubahan dikirim, tetapi belum bisa diverifikasi dari Supabase: ${readbackIssue.message}`);
+      const savedConfig = normalizeSurveyConfig(savedRow?.config);
+      if (!savedConfig || stableStringify(savedConfig) !== stableStringify(next)) {
+        throw new Error("Supabase tidak mengembalikan konfigurasi yang sama dengan perubahan tadi. Periksa izin tabel survey_config.");
+      }
+
       setConfig(next);
-      notify("Konfigurasi tersimpan dan berlaku untuk survei berikutnya.");
+      setDraft(JSON.stringify(next, null, 2));
+      notify("Konfigurasi tersimpan dan sudah diverifikasi di Supabase. Muat ulang halaman survei untuk melihat perubahannya.");
     } catch (e) {
       notify(e.message, true);
     }

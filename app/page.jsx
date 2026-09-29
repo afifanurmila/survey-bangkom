@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { DEFAULT_CONFIG } from "../lib/default-config";
+import { DEFAULT_CONFIG, normalizeSurveyConfig } from "../lib/default-config";
 import { SME_DOMAINS } from "../lib/sme-topics-data";
 import masterPegawaiData from "../lib/master-pegawai-data.json";
 import { getSupabase } from "../lib/supabase";
@@ -188,14 +188,19 @@ export default function SurveyPage() {
         .select("config")
         .eq("id", "main")
         .maybeSingle()
-        .then(({ data }) => {
-          if (
-            alive &&
-            data?.config?.instrumentVersion === DEFAULT_CONFIG.instrumentVersion &&
-            data?.config?.developmentFormats?.length &&
-            data?.config?.competencies?.length
-          ) {
-            setConfig({ ...DEFAULT_CONFIG, ...data.config });
+        .then(({ data, error }) => {
+          if (!alive) return;
+          if (error) {
+            setNotice(`Konfigurasi tersimpan belum dapat dimuat dari Supabase: ${error.message}`);
+            return;
+          }
+          if (!data?.config) return;
+
+          const savedConfig = normalizeSurveyConfig(data.config);
+          if (savedConfig) {
+            setConfig(savedConfig);
+          } else {
+            setNotice("Konfigurasi tersimpan tidak lengkap atau versinya tidak cocok. Halaman menampilkan konfigurasi bawaan.");
           }
         });
 
