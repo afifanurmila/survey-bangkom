@@ -9,6 +9,8 @@ import { getSupabase } from "../lib/supabase";
 
 const scale = ["Sangat tidak mampu", "Tidak mampu", "Cukup mampu", "Mampu", "Sangat mampu"];
 const needScale = ["Sangat tidak membutuhkan", "Tidak membutuhkan", "Cukup membutuhkan", "Membutuhkan", "Sangat membutuhkan"];
+const DRAFT_STORAGE_KEY = "survey-bangkom-draft";
+const DRAFT_SCHEMA_VERSION = 1;
 
 function formatMasaKerja(p) {
   if (p.masa_kerja_organisasi !== null && p.masa_kerja_organisasi !== undefined) {
@@ -103,6 +105,7 @@ export default function SurveyPage() {
   const [done, setDone] = useState(false);
   const [notice, setNotice] = useState("");
   const [validationErrors, setValidationErrors] = useState({});
+  const [draftReady, setDraftReady] = useState(false);
   const db = getSupabase();
 
   const competencyGroups = useMemo(() => [...new Set(config.competencies.map((c) => c.pilar))], [config.competencies]);
@@ -110,6 +113,73 @@ export default function SurveyPage() {
   const identificationStep = groupCount + 2;
   const suggestionStep = groupCount + 3;
   const totalSteps = groupCount + 3;
+
+  useEffect(() => {
+    try {
+      const rawDraft = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (rawDraft) {
+        const draft = JSON.parse(rawDraft);
+        if (draft.schemaVersion === DRAFT_SCHEMA_VERSION && Number(draft.instrumentVersion) === Number(DEFAULT_CONFIG.instrumentVersion)) {
+          const hasProgress = Number(draft.step) > 1 ||
+            Object.values(draft.profile || {}).some((value) => String(value ?? "").trim()) ||
+            Object.keys(draft.scores || {}).length > 0 ||
+            (draft.smeDomains || []).length > 0 ||
+            (draft.smeSubtopics || []).length > 0 ||
+            (draft.formats || []).length > 0 ||
+            String(draft.formatOther || "").trim() ||
+            (draft.topics || []).length > 0 ||
+            String(draft.topicOther || "").trim() ||
+            String(draft.method || "").trim() ||
+            String(draft.methodOther || "").trim() ||
+            String(draft.suggestion || "").trim();
+          if (draft.profile && typeof draft.profile === "object") setProfile((current) => ({ ...current, ...draft.profile }));
+          if (draft.scores && typeof draft.scores === "object") setScores(draft.scores);
+          if (Array.isArray(draft.smeDomains)) setSmeDomains(draft.smeDomains);
+          if (Array.isArray(draft.smeSubtopics)) setSmeSubtopics(draft.smeSubtopics);
+          if (Array.isArray(draft.formats)) setFormats(draft.formats);
+          if (typeof draft.formatOther === "string") setFormatOther(draft.formatOther);
+          if (Array.isArray(draft.topics)) setTopics(draft.topics);
+          if (typeof draft.topicOther === "string") setTopicOther(draft.topicOther);
+          if (typeof draft.method === "string") setMethod(draft.method);
+          if (typeof draft.methodOther === "string") setMethodOther(draft.methodOther);
+          if (typeof draft.suggestion === "string") setSuggestion(draft.suggestion);
+          if (Number.isInteger(draft.step) && draft.step >= 1) setStep(Math.min(draft.step, totalSteps));
+          if (hasProgress) setNotice("Progres jawaban sebelumnya dipulihkan dari browser ini.");
+        } else {
+          window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        }
+      }
+    } catch {
+      setNotice("Draf jawaban tidak dapat dibaca. Kamu tetap bisa melanjutkan survei.");
+    } finally {
+      setDraftReady(true);
+    }
+  }, [totalSteps]);
+
+  useEffect(() => {
+    if (!draftReady || done) return;
+    try {
+      window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+        schemaVersion: DRAFT_SCHEMA_VERSION,
+        instrumentVersion: config.instrumentVersion,
+        savedAt: new Date().toISOString(),
+        step,
+        profile,
+        scores,
+        smeDomains,
+        smeSubtopics,
+        formats,
+        formatOther,
+        topics,
+        topicOther,
+        method,
+        methodOther,
+        suggestion,
+      }));
+    } catch {
+      setNotice("Progres tidak dapat disimpan di browser ini. Periksa ruang penyimpanan perangkat.");
+    }
+  }, [draftReady, done, config.instrumentVersion, step, profile, scores, smeDomains, smeSubtopics, formats, formatOther, topics, topicOther, method, methodOther, suggestion]);
 
   useEffect(() => {
     let alive = true;
@@ -300,6 +370,11 @@ export default function SurveyPage() {
       setNotice(`Jawaban belum terkirim: ${error.message}`);
       return;
     }
+    try {
+      window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch {
+      // The response is already saved in Supabase; a stale local draft is harmless.
+    }
     setDone(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -357,6 +432,7 @@ export default function SurveyPage() {
               <div className="progress-track">
                 <span style={{ width: `${progress}%` }} />
               </div>
+              <p className="draft-note">Progres jawaban disimpan otomatis di browser ini sampai survei berhasil dikirim.</p>
             </section>
 
             <form onSubmit={submit}>
