@@ -219,7 +219,8 @@ export default function AdminPage() {
 
       const { error: issue } = await db
         .from("survey_config")
-        .upsert({ id: "main", config: next, updated_at: new Date().toISOString(), updated_by: adminUser?.username || "admin" });
+        .update({ config: next, updated_at: new Date().toISOString() })
+        .eq("id", "main");
       if (issue) throw issue;
 
       const { data: savedRow, error: readbackIssue } = await db
