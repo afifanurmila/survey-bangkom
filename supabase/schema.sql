@@ -53,13 +53,11 @@ create policy "Respondents can submit surveys" on public.survey_responses
   for insert to anon, authenticated with check (true);
 
 drop policy if exists "Admins can read survey responses" on public.survey_responses;
-create policy "Admins can read survey responses" on public.survey_responses
-  for select to anon, authenticated using (true);
 
 -- Grants
 grant select on public.users to anon, authenticated;
 grant select on public.survey_config to anon, authenticated;
-grant select, insert on public.survey_responses to anon, authenticated;
+grant insert on public.survey_responses to anon, authenticated;
 grant usage, select on sequence public.survey_responses_id_seq to anon, authenticated;
 grant usage, select on sequence public.users_id_seq to anon, authenticated;
 
@@ -91,6 +89,38 @@ end;
 $$;
 revoke all on function public.delete_selected_survey_responses(bigint[], text, text) from public;
 grant execute on function public.delete_selected_survey_responses(bigint[], text, text) to anon, authenticated;
+
+-- Admin response reads are protected by password verification inside the RPC.
+create or replace function public.get_survey_responses(
+  p_username text,
+  p_password text
+) returns table (
+  id bigint,
+  created_at timestamptz,
+  response jsonb
+)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if not exists (
+    select 1 from public.users u
+    where u.username = p_username
+      and u.password_hash = crypt(p_password, u.password_hash)
+  ) then
+    raise exception 'Username atau kata sandi administrator salah.';
+  end if;
+  return query
+    select sr.id, sr.created_at, sr.response
+    from public.survey_responses sr
+    order by sr.created_at desc
+    limit 5000;
+end;
+$$;
+revoke all on function public.get_survey_responses(text, text) from public;
+grant execute on function public.get_survey_responses(text, text) to anon, authenticated;
+revoke select on public.survey_responses from anon, authenticated;
 
 -- Save config through a password-verified function rather than public table writes.
 create or replace function public.save_survey_config(

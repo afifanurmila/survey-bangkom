@@ -77,10 +77,19 @@ export default function AdminPage() {
       return;
     }
 
+    const responsePassword = window.prompt("Masukkan kembali kata sandi admin untuk memuat jawaban survei:");
+    if (responsePassword === null) {
+      setBusy(false);
+      return;
+    }
+
     try {
       const [configResult, responseResult] = await Promise.all([
         db.from("survey_config").select("config").eq("id", "main").maybeSingle(),
-        db.from("survey_responses").select("id,created_at,response").order("created_at", { ascending: false }).limit(5000),
+        db.rpc("get_survey_responses", {
+          p_username: adminUser?.username || "",
+          p_password: responsePassword,
+        }),
       ]);
       setBusy(false);
 
@@ -101,7 +110,7 @@ export default function AdminPage() {
       if (responseResult.error) {
         setResponses([]);
         setUseSampleData(false);
-        notify(`Respons gagal dibaca dari Supabase: ${responseResult.error.message}. Periksa izin SELECT / RLS tabel survey_responses.`, true);
+        notify(`Respons gagal dibaca dari Supabase: ${responseResult.error.message}. Jalankan SQL supabase/read_survey_responses.sql terlebih dahulu.`, true);
         return;
       }
 
