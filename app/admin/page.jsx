@@ -2260,6 +2260,12 @@ export default function AdminPage() {
                     Perbarui judul, pengantar, daftar kompetensi dan kodenya, bentuk pengembangan, topik prioritas,
                     serta metode belajar. Gunakan format JSON yang valid.
                   </p>
+                  <p>
+                    Poin 3 pada formulir responden menggunakan judul “Bentuk Kegiatan SME yang Paling Efektif bagi Anda
+                    (Pilih maksimal 3)”. Di bagian <code>developmentFormats</code>, isi <code>label</code> sebagai judul
+                    pilihan dan <code>description</code> sebagai definisi yang tampil tepat di bawah judul. Opsi
+                    “Lainnya” membuka kolom isian tambahan.
+                  </p>
                 </div>
                 <textarea
                   className="json-editor"
