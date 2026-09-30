@@ -14,9 +14,10 @@ export default function AdminPage() {
   const [adminUser, setAdminUser] = useState(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [adminPasswordForSession, setAdminPasswordForSession] = useState("");
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [draft, setDraft] = useState(JSON.stringify(DEFAULT_CONFIG, null, 2));
-  const [responses, setResponses] = useState(SAMPLE_RESPONSES);
+  const [responses, setResponses] = useState([]);
   const [useSampleData, setUseSampleData] = useState(false);
   const [pegawaiList, setPegawaiList] = useState(masterPegawaiData);
   const [message, setMessage] = useState("");
@@ -47,19 +48,14 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem("admin_session");
-      if (saved) {
-        setAdminUser(JSON.parse(saved));
-      }
-    } catch {
-      // ignore
-    }
+    // Admin credentials are intentionally memory-only; old local sessions
+    // must sign in again after this update.
+    sessionStorage.removeItem("admin_session");
   }, []);
 
   useEffect(() => {
     if (adminUser) load();
-  }, [adminUser, useSampleData]);
+  }, [adminUser, useSampleData, adminPasswordForSession]);
 
   async function load() {
     setBusy(true);
@@ -77,9 +73,9 @@ export default function AdminPage() {
       return;
     }
 
-    const responsePassword = window.prompt("Masukkan kembali kata sandi admin untuk memuat jawaban survei:");
-    if (responsePassword === null) {
+    if (!adminPasswordForSession) {
       setBusy(false);
+      notify("Sesi admin sudah berakhir. Silakan masuk kembali untuk memuat respons.", true);
       return;
     }
 
@@ -88,7 +84,7 @@ export default function AdminPage() {
         db.from("survey_config").select("config").eq("id", "main").maybeSingle(),
         db.rpc("get_survey_responses", {
           p_username: adminUser?.username || "",
-          p_password: responsePassword,
+          p_password: adminPasswordForSession,
         }),
       ]);
       setBusy(false);
@@ -144,13 +140,12 @@ export default function AdminPage() {
   async function deleteSelectedResponses() {
     if (!selectedIds.length || deleting || useSampleData || !db) return;
     if (!window.confirm(`Hapus ${selectedIds.length} respons terpilih secara permanen? Tindakan ini tidak bisa dibatalkan.`)) return;
-    const deletePassword = window.prompt("Masukkan kembali kata sandi administrator untuk mengonfirmasi penghapusan:");
-    if (deletePassword === null) return;
-    setDeleting(true);
-    const { data: deletedCount, error: issue } = await db.rpc("delete_selected_survey_responses", {
-      p_ids: selectedIds,
-      p_username: adminUser?.username || "",
-      p_password: deletePassword,
+      if (!adminPasswordForSession) return notify("Sesi admin sudah berakhir. Silakan masuk kembali.", true);
+      setDeleting(true);
+      const { data: deletedCount, error: issue } = await db.rpc("delete_selected_survey_responses", {
+        p_ids: selectedIds,
+        p_username: adminUser?.username || "",
+        p_password: adminPasswordForSession,
     });
     setDeleting(false);
     if (issue) return notify(`Respons belum terhapus: ${issue.message}. Pastikan SQL izin hapus sudah dijalankan di Supabase.`, true);
@@ -176,8 +171,8 @@ export default function AdminPage() {
             const isValid = bcrypt.compareSync(password, user.password_hash);
             if (!isValid) throw new Error("Username atau kata sandi salah.");
             const sessionData = { username: user.username, loggedAt: new Date().toISOString() };
-            sessionStorage.setItem("admin_session", JSON.stringify(sessionData));
             setAdminUser(sessionData);
+            setAdminPasswordForSession(password);
             setPassword("");
             notify("Login berhasil.");
             return;
@@ -190,8 +185,8 @@ export default function AdminPage() {
       // Fallback local verification for default credentials
       if (username.trim() === "admin" && password === "123456") {
         const sessionData = { username: "admin", loggedAt: new Date().toISOString() };
-        sessionStorage.setItem("admin_session", JSON.stringify(sessionData));
         setAdminUser(sessionData);
+        setAdminPasswordForSession(password);
         setPassword("");
         notify("Login berhasil.");
       } else {
@@ -207,6 +202,8 @@ export default function AdminPage() {
   function handleSignOut() {
     sessionStorage.removeItem("admin_session");
     setAdminUser(null);
+    setAdminPasswordForSession("");
+    setUseSampleData(false);
     notify("Anda telah keluar.");
   }
 
@@ -238,13 +235,12 @@ export default function AdminPage() {
       )
         throw new Error("Kompetensi perlu memiliki id, title, dan pilar. Pilihan kegiatan SME perlu memiliki value dan label.");
 
-      const confirmationPassword = window.prompt("Masukkan ulang kata sandi admin untuk menyimpan perubahan kuesioner:");
-      if (confirmationPassword === null) return;
+      if (!adminPasswordForSession) throw new Error("Sesi admin sudah berakhir. Silakan masuk kembali.");
 
       const { error: issue } = await db.rpc("save_survey_config", {
         p_config: next,
         p_username: adminUser?.username || "",
-        p_password: confirmationPassword,
+        p_password: adminPasswordForSession,
       });
       if (issue) throw issue;
 
