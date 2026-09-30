@@ -65,9 +65,15 @@ export default function AdminPage() {
     setBusy(true);
     setError(false);
 
-    if (useSampleData || !db) {
+    if (useSampleData) {
       setResponses(SAMPLE_RESPONSES);
       setBusy(false);
+      return;
+    }
+    if (!db) {
+      setResponses([]);
+      setBusy(false);
+      notify("Koneksi Supabase belum tersedia. Periksa NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY pada konfigurasi deployment.", true);
       return;
     }
 
@@ -92,19 +98,22 @@ export default function AdminPage() {
         notify(`Konfigurasi belum bisa dibaca dari Supabase: ${configResult.error.message}`, true);
       }
 
-      const rows = responseResult.data || [];
-      if (rows.length === 0) {
-        // Auto-load sample data so user immediately sees preview
-        setResponses(SAMPLE_RESPONSES);
-        setUseSampleData(true);
-        notify("Menampilkan 5 data pegawai simulasi (preview hasil analisis).");
-      } else {
-        setResponses(rows);
+      if (responseResult.error) {
+        setResponses([]);
+        setUseSampleData(false);
+        notify(`Respons gagal dibaca dari Supabase: ${responseResult.error.message}. Periksa izin SELECT / RLS tabel survey_responses.`, true);
+        return;
       }
+
+      const rows = responseResult.data || [];
+      setResponses(rows);
+      setUseSampleData(false);
+      if (rows.length === 0) notify("Belum ada respons yang tersimpan di tabel survey_responses.");
     } catch (e) {
       setBusy(false);
-      setResponses(SAMPLE_RESPONSES);
-      setUseSampleData(true);
+      setResponses([]);
+      setUseSampleData(false);
+      notify(`Dashboard gagal memuat data Supabase: ${e?.message || "kesalahan koneksi"}. Coba Muat Ulang.`, true);
     }
   }
 
