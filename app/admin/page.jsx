@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import bcrypt from "bcryptjs";
 import { DEFAULT_CONFIG, normalizeSurveyConfig } from "../../lib/default-config";
-import { SME_DOMAINS } from "../../lib/sme-topics-data";
 import { SAMPLE_RESPONSES } from "../../lib/sample-data";
 import masterPegawaiData from "../../lib/master-pegawai-data.json";
 import { getSupabase } from "../../lib/supabase";
@@ -215,15 +214,31 @@ export default function AdminPage() {
         next.instrumentVersion !== DEFAULT_CONFIG.instrumentVersion ||
         !next.surveyTitle ||
         !next.intro ||
+        !next.identification ||
+        typeof next.identification !== "object" ||
+        [
+          "title", "description", "domainQuestion", "domainHelper", "subtopicQuestion", "subtopicHelper",
+          "developmentFormatsQuestion", "developmentFormatsHelper", "formatOtherLabel", "formatOtherPlaceholder",
+          "learningMethodsQuestion", "methodOtherLabel", "methodOtherPlaceholder",
+        ].some((key) => typeof next.identification[key] !== "string" || !next.identification[key].trim()) ||
+        !Number.isInteger(next.identification.minDomains) ||
+        !Number.isInteger(next.identification.maxDomains) ||
+        next.identification.minDomains < 1 ||
+        next.identification.maxDomains < next.identification.minDomains ||
+        !Number.isInteger(next.identification.maxDevelopmentFormats) ||
+        next.identification.maxDevelopmentFormats < 1 ||
         !Array.isArray(next.competencies) ||
         !next.competencies.length ||
+        !Array.isArray(next.smeDomains) ||
+        !next.smeDomains.length ||
+        next.smeDomains.some((domain) => !domain?.id || !domain?.code || !domain?.title || !Array.isArray(domain.topics)) ||
         !Array.isArray(next.developmentFormats) ||
         !next.developmentFormats.length ||
         !Array.isArray(next.priorityTopics) ||
         !Array.isArray(next.learningMethods)
       )
         throw new Error(
-          "Gunakan konfigurasi instrumen versi terbaru dan pastikan judul, pengantar, competencies, developmentFormats, priorityTopics, dan learningMethods tersedia."
+          "Pastikan judul, pengantar, teks identification, daftar smeDomains, competencies, developmentFormats, priorityTopics, dan learningMethods tersedia dengan format yang benar."
         );
       if (
         next.competencies.some((x) => !x.id || !x.title || !x.pilar) ||
@@ -653,7 +668,7 @@ export default function AdminPage() {
 
     const totalRespondents = list.length;
 
-    const domainStats = SME_DOMAINS.map((domain) => {
+    const domainStats = config.smeDomains.map((domain) => {
       const respondentsInDomain = list.filter((r) => {
         const resp = r.response || {};
         const chosenDomains = resp.sme_domains || [];
@@ -711,7 +726,7 @@ export default function AdminPage() {
     const topTopic = allTopicsFlattened.length ? allTopicsFlattened[0] : null;
 
     return { totalRespondents, domainStats, topDomain, topTopic, allTopics: allTopicsFlattened };
-  }, [responses, filterUnit]);
+  }, [responses, filterUnit, config.smeDomains]);
 
   // Export to CSV Function
   function exportCsv() {
@@ -2014,7 +2029,7 @@ export default function AdminPage() {
                         {smeAnalytics.allTopics
                           .filter((tc) => !searchPerson || tc.topic.toLowerCase().includes(searchPerson.toLowerCase()))
                           .map((tc, idx) => {
-                            const parentDomain = SME_DOMAINS.find((d) => d.topics.includes(tc.topic));
+                            const parentDomain = config.smeDomains.find((d) => d.topics.includes(tc.topic));
                             return (
                               <tr key={idx}>
                                 <td><b>{idx + 1}</b></td>
@@ -2279,6 +2294,11 @@ export default function AdminPage() {
                     (Pilih maksimal 3)”. Di bagian <code>developmentFormats</code>, isi <code>label</code> sebagai judul
                     pilihan dan <code>description</code> sebagai definisi yang tampil tepat di bawah judul. Opsi
                     “Lainnya” membuka kolom isian tambahan.
+                  </p>
+                  <p>
+                    Kalimat judul, pengantar, pertanyaan, petunjuk, serta batas pilihan pada Bagian 10 dapat diubah di
+                    objek <code>identification</code>. Nama rumpun, kode, ikon, dan daftar sub-topiknya dapat diubah di
+                    <code> smeDomains</code>.
                   </p>
                 </div>
                 <textarea

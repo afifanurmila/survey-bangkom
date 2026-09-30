@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { DEFAULT_CONFIG, normalizeSurveyConfig } from "../lib/default-config";
-import { SME_DOMAINS } from "../lib/sme-topics-data";
 import masterPegawaiData from "../lib/master-pegawai-data.json";
 import { getSupabase } from "../lib/supabase";
 
@@ -348,9 +347,11 @@ export default function SurveyPage() {
         });
     }
     if (step === identificationStep) {
-      if (!smeDomains.length) errors.smeDomains = "Pilih setidaknya 1 Rumpun Kepakaran SME yang diminati.";
+      if (smeDomains.length < config.identification.minDomains) errors.smeDomains = `Pilih setidaknya ${config.identification.minDomains} rumpun kepakaran SME.`;
+      if (smeDomains.length > config.identification.maxDomains) errors.smeDomains = `Pilih maksimal ${config.identification.maxDomains} rumpun kepakaran SME.`;
       if (!smeSubtopics.length) errors.smeSubtopics = "Pilih setidaknya 1 sub-topik materi bangkom yang dibutuhkan.";
       if (!formats.length) errors.formats = "Pilih setidaknya satu bentuk pengembangan.";
+      if (formats.length > config.identification.maxDevelopmentFormats) errors.formats = `Pilih maksimal ${config.identification.maxDevelopmentFormats} bentuk kegiatan.`;
       if (formats.includes("Lainnya") && !formatOther.trim()) errors.formatOther = "Tuliskan bentuk pengembangan lainnya.";
       if (!method) errors.method = "Metode pembelajaran wajib dipilih.";
       if (method === "Lainnya" && !methodOther.trim()) errors.methodOther = "Tuliskan metode pembelajaran lainnya.";
@@ -386,7 +387,7 @@ export default function SurveyPage() {
       return;
     }
     setBusy(true);
-    const selectedSmeDomainObjects = smeDomains.map((id) => SME_DOMAINS.find((d) => d.id === id)).filter(Boolean);
+    const selectedSmeDomainObjects = smeDomains.map((id) => config.smeDomains.find((d) => d.id === id)).filter(Boolean);
     const response = {
       ...profile,
       nama: profile.nama.trim(),
@@ -671,18 +672,18 @@ export default function SurveyPage() {
                 <section className="card form-section">
                   <SectionHeading
                     n={String(identificationStep)}
-                    title="Identifikasi Kebutuhan Pengembangan & Peminatan SME"
-                    desc="Pilih rumpun kepakaran Subject Matter Expert (SME), sub-topik materi, serta bentuk dan metode pembelajaran yang paling sesuai."
+                    title={config.identification.title}
+                    desc={config.identification.description}
                   />
 
                   {/* 1. PILIHAN RUMPUN KEPATARAN SME */}
                   <Field
-                    label="1. Rumpun Kepakaran Subject Matter Expert (SME) yang Diminati (Pilih 1 s.d. 3 Rumpun) *"
+                    label={config.identification.domainQuestion}
                     error={validationErrors.smeDomains}
-                    helper="Pilih bidang kepakaran yang paling relevan dengan minat pengembangan karier atau tugas fungsi Anda."
+                    helper={config.identification.domainHelper}
                   >
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px", marginTop: "4px" }}>
-                      {SME_DOMAINS.map((domain) => {
+                      {config.smeDomains.map((domain) => {
                         const isSelected = smeDomains.includes(domain.id);
                         return (
                           <div
@@ -696,7 +697,7 @@ export default function SurveyPage() {
                                   }
                                   return nextList;
                                 });
-                              }, domain.id, 3);
+                              }, domain.id, config.identification.maxDomains);
                               setValidationErrors((prev) => ({ ...prev, smeDomains: "" }));
                             }}
                             style={{
@@ -741,13 +742,13 @@ export default function SurveyPage() {
                   {/* 2. PILIHAN SUB-TOPIK SPESIFIK */}
                   {smeDomains.length > 0 && (
                     <Field
-                      label="2. Sub-Topik Materi Bangkom yang Dibutuhkan / Diprioritaskan *"
+                      label={config.identification.subtopicQuestion}
                       error={validationErrors.smeSubtopics}
-                      helper="Centang sub-topik materi pelatihan yang ingin Anda ikuti pada rumpun kepakaran yang telah dipilih di atas."
+                      helper={config.identification.subtopicHelper}
                     >
                       <div style={{ display: "grid", gap: "14px", marginTop: "6px" }}>
                         {smeDomains.map((domainId) => {
-                          const domain = SME_DOMAINS.find((d) => d.id === domainId);
+                          const domain = config.smeDomains.find((d) => d.id === domainId);
                           if (!domain) return null;
                           return (
                             <div
@@ -792,16 +793,16 @@ export default function SurveyPage() {
 
                   {/* 3. BENTUK PENGEMBANGAN */}
                   <Field
-                    label="3. Bentuk Kegiatan SME yang Paling Efektif bagi Anda (Pilih maksimal 3) *"
+                    label={config.identification.developmentFormatsQuestion}
                     error={validationErrors.formats}
-                    helper="Pilih hingga tiga kegiatan yang paling membantu Anda mengembangkan kompetensi untuk mendukung peran SME."
+                    helper={config.identification.developmentFormatsHelper}
                   >
                     <Checks
                       name="formats"
                       options={config.developmentFormats}
                       value={formats}
                       onChange={(v) => {
-                        toggle(formats, setFormats, v, 3);
+                        toggle(formats, setFormats, v, config.identification.maxDevelopmentFormats);
                         setValidationErrors((prev) => ({ ...prev, formats: "" }));
                       }}
                     />
@@ -809,7 +810,7 @@ export default function SurveyPage() {
                   {formats.includes("Lainnya") && (
                     <Field
                       id="formatOther"
-                      label="Bentuk kegiatan SME lainnya, sebutkan *"
+                      label={config.identification.formatOtherLabel}
                       error={validationErrors.formatOther}
                     >
                       <input
@@ -819,13 +820,13 @@ export default function SurveyPage() {
                           setFormatOther(e.target.value);
                           setValidationErrors((prev) => ({ ...prev, formatOther: "" }));
                         }}
-                        placeholder="Tuliskan kegiatan SME yang Anda usulkan"
+                        placeholder={config.identification.formatOtherPlaceholder}
                       />
                     </Field>
                   )}
 
                   {/* 4. METODE PEMBELAJARAN */}
-                  <Field label="4. Metode Pembelajaran yang Paling Sesuai *" error={validationErrors.method}>
+                  <Field label={config.identification.learningMethodsQuestion} error={validationErrors.method}>
                     <RadioList
                       name="method"
                       options={config.learningMethods}
@@ -839,7 +840,7 @@ export default function SurveyPage() {
                   {method === "Lainnya" && (
                     <Field
                       id="methodOther"
-                      label="Metode pembelajaran lainnya, sebutkan *"
+                      label={config.identification.methodOtherLabel}
                       error={validationErrors.methodOther}
                     >
                       <input
@@ -849,7 +850,7 @@ export default function SurveyPage() {
                           setMethodOther(e.target.value);
                           setValidationErrors((prev) => ({ ...prev, methodOther: "" }));
                         }}
-                        placeholder="Tuliskan metode pembelajaran yang Anda usulkan"
+                        placeholder={config.identification.methodOtherPlaceholder}
                       />
                     </Field>
                   )}
